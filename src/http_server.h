@@ -12,6 +12,7 @@ namespace http {
 enum class StatusCode : int {
     OK = 200,
     NotFound = 404,
+    InternalServerError = 500,
 };
 
 std::ostream& operator<<(std::ostream& os, StatusCode code);
@@ -41,7 +42,8 @@ using Handler =
 class Router {
 public:
     struct Route {
-        std::regex pat;
+        std::string pat;
+        std::regex re;
         Handler handler;
     };
 

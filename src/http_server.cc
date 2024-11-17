@@ -16,9 +16,11 @@ void ResponseWriter::SendStatus(StatusCode code) {
 }
 
 void Router::handle(const Request& request, ResponseWriter& response) {
+    log::debug("handling path {}", request.path);
     std::smatch m;
-    for (auto& [pat, h] : routes_) {
-        if (std::regex_match(request.addr, m, pat)) {
+    for (auto& [pat, re, h] : routes_) {
+        log::debug("testing handler {}", pat);
+        if (std::regex_match(request.path, m, re)) {
             return h(request, response);
         }
     }
@@ -27,7 +29,8 @@ void Router::handle(const Request& request, ResponseWriter& response) {
 }
 
 Router::Builder& Router::Builder::route(std::string pat, Handler handler) {
-    routes_.push_back({.pat = std::regex(pat), .handler = std::move(handler)});
+    routes_.push_back(
+        {.pat = pat, .re = std::regex(pat), .handler = std::move(handler)});
     return *this;
 }
 
