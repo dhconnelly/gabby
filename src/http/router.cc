@@ -1,6 +1,4 @@
-#include "http_server.h"
-
-#include <format>
+#include "http/router.h"
 
 #include "log.h"
 
@@ -40,11 +38,6 @@ Handler Router::Builder::build() {
                                         ResponseWriter& response) mutable {
         router.handle(request, response);
     };
-}
-
-void HttpServer::run() {
-    log::info("starting http server at port {}", port_);
-    //
 }
 
 }  // namespace http
