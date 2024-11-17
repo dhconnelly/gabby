@@ -29,7 +29,10 @@ FetchContent_MakeAvailable(googletest)
 
 file(GLOB_RECURSE TEST_SOURCES "src/*_test.cc")
 add_executable(${PROJECT_NAME}_test ${TEST_SOURCES})
-target_link_libraries(${PROJECT_NAME}_test PRIVATE ${PROJECT_NAME}_lib GTest::gtest_main)
+target_link_libraries(${PROJECT_NAME}_test PRIVATE
+    ${PROJECT_NAME}_lib 
+    GTest::gtest_main
+    GTest::gmock_main)
 
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME}_test)

@@ -1,8 +1,10 @@
 #include <iostream>
 #include <string_view>
 
-#include "api.h"
 #include "http_server.h"
+#include "log.h"
+
+namespace gabby {
 
 [[noreturn]] void Die(const std::string_view message) {
     std::cerr << message << std::endl;
@@ -17,7 +19,7 @@ std::ostream& operator<<(std::ostream& os, const Config& config) {
     return os << "{ " << "port: " << config.port << " }";
 }
 
-Config kDefaultConfig = Config{
+Config kDefaultConfig{
     .port = 8080,
 };
 
@@ -34,11 +36,33 @@ Config ParseArgs(int argc, char* argv[]) {
     return config;
 }
 
+struct Context {};
+
+http::Handler MakeRouter() {
+    std::shared_ptr<Context> ctx(new Context);
+    return http::Router::builder()
+        .route("/healthz",
+               [ctx](const http::Request& request,
+                     http::ResponseWriter& response) {
+                   log::info("handling /healthz");
+                   response.SendStatus(http::StatusCode::OK);
+               })
+        .route("/",
+               [ctx](const http::Request& request,
+                     http::ResponseWriter& response) {
+                   log::info("handling /");
+                   response.SendStatus(http::StatusCode::OK);
+               })
+        .build();
+}
+
+}  // namespace gabby
+
 int main(int argc, char* argv[]) {
-    auto config = ParseArgs(argc, argv);
+    auto config = gabby::ParseArgs(argc, argv);
     std::cout << config << std::endl;
 
-    gabby::HttpServer server({.port = config.port});
+    gabby::http::HttpServer server(gabby::MakeRouter());
     server.run();
 
     return 0;
