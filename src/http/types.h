@@ -11,6 +11,7 @@ namespace http {
 
 enum class StatusCode : int {
     OK = 200,
+    BadRequest = 400,
     NotFound = 404,
     InternalServerError = 500,
 };
@@ -25,7 +26,15 @@ struct Request {
 
 class ResponseWriter {
 public:
-    virtual void SendStatus(StatusCode code);
+    virtual ~ResponseWriter() = default;
+
+    // writes an http header with the specified status code. it is an
+    // error to call this twice or after any other data has been sent.
+    // TODO: return a different object here to enfroce this.
+    virtual void SendStatus(StatusCode code) = 0;
+    // writes the specified data into the response. if a status has not
+    // already been sent, this will write StatusCode::OK first.
+    virtual void Send(std::string_view data) = 0;
 };
 
 using Handler =

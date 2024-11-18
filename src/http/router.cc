@@ -9,10 +9,6 @@ std::ostream& operator<<(std::ostream& os, StatusCode code) {
     return os << static_cast<int>(code);
 }
 
-void ResponseWriter::SendStatus(StatusCode code) {
-    LOG(DEBUG) << "sending status code " << code;
-}
-
 void Router::handle(const Request& request, ResponseWriter& response) {
     LOG(DEBUG) << "handling path " << request.path;
     std::smatch m;
