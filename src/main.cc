@@ -15,15 +15,15 @@ namespace gabby {
 
 struct Config {
     int port;
-    log::LogLevel log_level;
+    LogLevel log_level;
 };
 
-std::string to_string(const Config& config) {
-    return std::format("{{ port: {}, log_level: {} }}", config.port,
-                       to_string(config.log_level));
+std::ostream& operator<<(std::ostream& os, const Config& config) {
+    return os << "{ port: " << config.port
+              << ", log_level: " << config.log_level << " }";
 }
 
-Config kDefaultConfig{.port = 8080, .log_level = log::LogLevel::OFF};
+Config kDefaultConfig{.port = 8080, .log_level = LogLevel::OFF};
 
 Config ParseArgs(int argc, char* argv[]) {
     Config config = kDefaultConfig;
@@ -35,11 +35,11 @@ Config ParseArgs(int argc, char* argv[]) {
             if (port == 0) Die("invalid --port argument");
             config.port = port;
         } else if (arg == "--info") {
-            config.log_level = log::LogLevel::INFO;
+            config.log_level = LogLevel::INFO;
         } else if (arg == "--warn") {
-            config.log_level = log::LogLevel::WARN;
+            config.log_level = LogLevel::WARN;
         } else if (arg == "--debug") {
-            config.log_level = log::LogLevel::DEBUG;
+            config.log_level = LogLevel::DEBUG;
         }
     }
     return config;
@@ -53,25 +53,26 @@ http::Handler MakeRouter() {
         .route("/healthz",
                [ctx](const http::Request& request,
                      http::ResponseWriter& response) {
-                   log::info("handling /healthz");
+                   LOG(INFO) << "handling healthz";
                    response.SendStatus(http::StatusCode::OK);
                })
         .route("/",
                [ctx](const http::Request& request,
                      http::ResponseWriter& response) {
-                   log::info("handling /");
+                   LOG(INFO) << "handling /";
                    response.SendStatus(http::StatusCode::OK);
                })
         .build();
 }
 
-}  // namespace gabby
-
-int main(int argc, char* argv[]) {
+void Run(int argc, char* argv[]) {
     auto config = gabby::ParseArgs(argc, argv);
-    gabby::log::SetGlobalLogLevel(config.log_level);
-    gabby::log::info("server config: {}", to_string(config));
+    gabby::SetGlobalLogLevel(config.log_level);
+    LOG(INFO) << "server config: " << config;
     gabby::http::HttpServer server(gabby::MakeRouter());
     server.run();
-    return 0;
 }
+
+}  // namespace gabby
+
+int main(int argc, char* argv[]) { gabby::Run(argc, argv); }

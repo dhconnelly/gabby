@@ -1,13 +1,36 @@
 #include "log.h"
 
+#include <iostream>
+
 namespace gabby {
-namespace log {
 
 LogLevel GlobalLogLevel = LogLevel::OFF;
 
 void SetGlobalLogLevel(LogLevel level) { GlobalLogLevel = level; }
 
-std::string to_string(LogLevel level) { return std::string(prefix(level)); }
+std::ostream &operator<<(std::ostream &os, LogLevel level) {
+    switch (level) {
+        case LogLevel::OFF: return os << "OFF";
+        case LogLevel::INFO: return os << "INFO";
+        case LogLevel::DEBUG: return os << "DEBUG";
+        case LogLevel::WARN: return os << "WARN";
+    }
+}
 
-}  // namespace log
+const char *basename(const char *filename) {
+    const char *slash = strrchr(filename, '/');
+    return slash ? slash + 1 : filename;
+}
+
+Logger::Logger(const char *filename, int line, LogLevel level) : level_(level) {
+    auto ts = std::chrono::system_clock::now();
+    stream_ << std::format("{}", ts) << " " << basename(filename) << ":" << line
+            << " " << level << ": ";
+}
+
+Logger::~Logger() {
+    stream_ << std::endl;
+    std::cerr << stream_.str();
+}
+
 }  // namespace gabby

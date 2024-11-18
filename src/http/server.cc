@@ -7,7 +7,7 @@
 namespace gabby {
 namespace http {
 
-void HttpServer::run() { log::info("starting http server at port {}", port_); }
+void HttpServer::run() { LOG(INFO) << "starting web server at port " << port_; }
 
 }  // namespace http
 }  // namespace gabby

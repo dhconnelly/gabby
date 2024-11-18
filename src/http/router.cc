@@ -10,19 +10,19 @@ std::ostream& operator<<(std::ostream& os, StatusCode code) {
 }
 
 void ResponseWriter::SendStatus(StatusCode code) {
-    log::debug("sending status code {}", static_cast<int>(code));
+    LOG(DEBUG) << "sending status code " << code;
 }
 
 void Router::handle(const Request& request, ResponseWriter& response) {
-    log::debug("handling path {}", request.path);
+    LOG(DEBUG) << "handling path " << request.path;
     std::smatch m;
     for (auto& [pat, re, h] : routes_) {
-        log::debug("testing handler {}", pat);
+        LOG(DEBUG) << "testing handler " << pat;
         if (std::regex_match(request.path, m, re)) {
             return h(request, response);
         }
     }
-    log::warn("no handler for path {}", request.path);
+    LOG(WARN) << "no handler for path " << request.path;
     response.SendStatus(StatusCode::NotFound);
 }
 
