@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string_view>
 
+#include "api/openai.h"
 #include "http/router.h"
 #include "http/server.h"
 #include "http/types.h"
@@ -18,58 +19,48 @@ struct Config {
     LogLevel log_level;
 };
 
+Config kDefaultConfig{.port = 8080, .log_level = LogLevel::OFF};
+
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     return os << "{ port: " << config.port
               << ", log_level: " << config.log_level << " }";
 }
 
-Config kDefaultConfig{.port = 8080, .log_level = LogLevel::OFF};
-
 Config ParseArgs(int argc, char* argv[]) {
     Config config = kDefaultConfig;
     for (int i = 0; i < argc; i++) {
-        std::string_view arg(argv[i]);
-        if (arg == "--port") {
+        if (strcmp(argv[i], "--port") == 0) {
             if (i == argc - 1) Die("missing argument for --port");
-            int port = atoi(argv[i]);
+            int port = atoi(argv[i + 1]);
             if (port == 0) Die("invalid --port argument");
             config.port = port;
-        } else if (arg == "--info") {
+        } else if (strcmp(argv[i], "--info") == 0) {
             config.log_level = LogLevel::INFO;
-        } else if (arg == "--warn") {
+        } else if (strcmp(argv[i], "--warn") == 0) {
             config.log_level = LogLevel::WARN;
-        } else if (arg == "--debug") {
+        } else if (strcmp(argv[i], "--debug") == 0) {
             config.log_level = LogLevel::DEBUG;
         }
     }
     return config;
 }
 
-struct Context {};
-
-http::Handler MakeRouter() {
-    std::shared_ptr<Context> ctx(new Context);
-    return http::Router::builder()
-        .route("/healthz",
-               [ctx](const http::Request& request,
-                     http::ResponseWriter& response) {
-                   LOG(INFO) << "handling healthz";
-                   response.SendStatus(http::StatusCode::OK);
-               })
-        .route("/",
-               [ctx](const http::Request& request,
-                     http::ResponseWriter& response) {
-                   LOG(INFO) << "handling /";
-                   response.SendStatus(http::StatusCode::OK);
-               })
-        .build();
+http::Handler HealthCheck() {
+    return [](const http::Request& req, http::ResponseWriter& resp) {
+        resp.SendStatus(http::StatusCode::OK);
+    };
 }
 
 void Run(int argc, char* argv[]) {
     auto config = gabby::ParseArgs(argc, argv);
-    gabby::SetGlobalLogLevel(config.log_level);
+    SetGlobalLogLevel(config.log_level);
     LOG(INFO) << "server config: " << config;
-    gabby::http::HttpServer server(gabby::MakeRouter());
+
+    http::HttpServer server(http::HttpServerConfig{.port = config.port},
+                            http::Router::builder()
+                                .route("/healthz", HealthCheck())
+                                .route("/v1/.*", api::BuildOpenAIAPI())
+                                .build());
     server.run();
 }
 

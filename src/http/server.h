@@ -10,16 +10,10 @@ struct HttpServerConfig {
     int port;
 };
 
-constexpr HttpServerConfig kDefaultHttpServerConfig{
-    .port = 8080,
-};
-
 class HttpServer {
 public:
     HttpServer(const HttpServerConfig& config, Handler handler)
         : port_(config.port) {}
-    HttpServer(Handler handler)
-        : HttpServer(kDefaultHttpServerConfig, handler) {}
 
     void run();
 
