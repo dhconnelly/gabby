@@ -17,13 +17,13 @@ InferenceService::InferenceService(Config config)
 
 http::Handler InferenceService::HealthCheck() {
     return [](http::Request& req, http::ResponseWriter& resp) {
-        resp.SendStatus(http::StatusCode::OK);
+        resp.WriteStatus(http::StatusCode::OK);
     };
 };
 
 http::Handler InferenceService::ChatCompletion() {
     return [](http::Request& req, http::ResponseWriter& resp) {
-        resp.SendStatus(http::StatusCode::OK);
+        resp.WriteStatus(http::StatusCode::OK);
     };
 }
 

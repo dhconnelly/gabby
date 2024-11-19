@@ -91,7 +91,19 @@ void HttpServer::Listen() {
 }
 
 void HttpServer::Handle(ClientSocket&& sock) {
-    LOG(INFO) << "handling client " << sock.addr() << ":" << sock.port();
+    LOG(DEBUG) << "handling client " << sock.addr() << ":" << sock.port();
+    auto req = ParseRequest(sock);
+    ResponseWriter resp(sock.fd());
+    handler_(req, resp);
+    LOG(INFO) << to_string(req.method) << " " << req.path << " HTTP/1.1 "
+              << int(resp.status()) << " " << resp.bytes_written()
+              << " \"UNKNOWN\"";
+}
+
+Request HttpServer::ParseRequest(ClientSocket& sock) {
+    // TODO
+    Request req{.addr = sock.addr()};
+    return req;
 }
 
 }  // namespace http

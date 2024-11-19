@@ -15,8 +15,9 @@ class ClientSocket {
 public:
     ClientSocket(int fd, struct sockaddr_in addr);
     ~ClientSocket();
-    int port() { return port_; }
-    std::string addr() { return addr_; }
+    int port() const { return port_; }
+    std::string addr() const { return addr_; }
+    int fd() { return fd_; }
 
 private:
     int fd_;
@@ -28,8 +29,8 @@ class ServerSocket {
 public:
     explicit ServerSocket(int port);
     ~ServerSocket();
-    int fd() { return fd_; }
-    int port() { return port_; }
+    int fd() const { return fd_; }
+    int port() const { return port_; }
     void Listen();
     ClientSocket Accept();
 
@@ -52,6 +53,7 @@ public:
 private:
     void Listen();
     void Handle(ClientSocket&& sock);
+    Request ParseRequest(ClientSocket& sock);
 
     ServerSocket sock_;
     Handler handler_;

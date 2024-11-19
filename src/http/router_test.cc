@@ -11,8 +11,8 @@ namespace http {
 
 Handler SimpleHandler(StatusCode code, std::string data = "") {
     return [code, data](Request& req, ResponseWriter& resp) {
-        resp.SendStatus(code);
-        resp.Send(std::string_view(data));
+        resp.WriteStatus(code);
+        resp.Write(std::string_view(data));
     };
 }
 
@@ -20,8 +20,10 @@ Handler NotFoundHandler = SimpleHandler(StatusCode::NotFound);
 Handler ErrorHandler = SimpleHandler(StatusCode::InternalServerError);
 
 struct SimpleResponseWriter : public http::ResponseWriter {
-    void SendStatus(http::StatusCode code) override { this->code = code; }
-    void Send(std::string_view data) override { this->data = data; }
+    SimpleResponseWriter() : http::ResponseWriter(0) {}
+
+    void WriteStatus(http::StatusCode code) override { this->code = code; }
+    void Write(std::string_view data) override { this->data = data; }
 
     http::StatusCode code;
     std::string data;

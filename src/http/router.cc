@@ -15,7 +15,7 @@ void Router::handle(Request& req, ResponseWriter& resp) {
         }
     }
     LOG(WARN) << "no handler for path " << req.path;
-    resp.SendStatus(StatusCode::NotFound);
+    resp.WriteStatus(StatusCode::NotFound);
 }
 
 Router::Builder& Router::Builder::route(std::string pat, Handler handler) {

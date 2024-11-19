@@ -16,7 +16,7 @@ struct Config {
 
 class InferenceService {
 public:
-    InferenceService(Config config);
+    explicit InferenceService(Config config);
     void Start();
     void Stop();
 
