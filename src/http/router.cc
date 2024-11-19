@@ -1,25 +1,21 @@
 #include "http/router.h"
 
-#include "log.h"
+#include "utils/logging.h"
 
 namespace gabby {
 namespace http {
 
-std::ostream& operator<<(std::ostream& os, StatusCode code) {
-    return os << static_cast<int>(code);
-}
-
-void Router::handle(const Request& request, ResponseWriter& response) {
-    LOG(DEBUG) << "handling path " << request.path;
+void Router::handle(Request& req, ResponseWriter& resp) {
+    LOG(DEBUG) << "handling path " << req.path;
     std::smatch m;
     for (auto& [pat, re, h] : routes_) {
         LOG(DEBUG) << "testing handler " << pat;
-        if (std::regex_match(request.path, m, re)) {
-            return h(request, response);
+        if (std::regex_match(req.path, m, re)) {
+            return h(req, resp);
         }
     }
-    LOG(WARN) << "no handler for path " << request.path;
-    response.SendStatus(StatusCode::NotFound);
+    LOG(WARN) << "no handler for path " << req.path;
+    resp.SendStatus(StatusCode::NotFound);
 }
 
 Router::Builder& Router::Builder::route(std::string pat, Handler handler) {
@@ -30,9 +26,9 @@ Router::Builder& Router::Builder::route(std::string pat, Handler handler) {
 
 Handler Router::Builder::build() {
     Router router(std::move(routes_));
-    return [router = std::move(router)](const Request& request,
-                                        ResponseWriter& response) mutable {
-        router.handle(request, response);
+    return [router = std::move(router)](Request& req,
+                                        ResponseWriter& resp) mutable {
+        router.handle(req, resp);
     };
 }
 

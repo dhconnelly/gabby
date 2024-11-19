@@ -10,7 +10,7 @@ namespace gabby {
 namespace http {
 
 Handler SimpleHandler(StatusCode code, std::string data = "") {
-    return [code, data](const Request& request, ResponseWriter& resp) {
+    return [code, data](Request& req, ResponseWriter& resp) {
         resp.SendStatus(code);
         resp.Send(std::string_view(data));
     };

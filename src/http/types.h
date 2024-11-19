@@ -6,6 +6,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "json/json.h"
+
 namespace gabby {
 namespace http {
 
@@ -22,6 +24,8 @@ struct Request {
     std::string addr;
     std::string path;
     std::unordered_map<std::string, std::string> params;
+
+    json::Value json() { return json::Value{}; }
 };
 
 class ResponseWriter {
@@ -37,8 +41,7 @@ public:
     virtual void Send(std::string_view data) = 0;
 };
 
-using Handler =
-    std::function<void(const Request& request, ResponseWriter& response)>;
+using Handler = std::function<void(Request& request, ResponseWriter& response)>;
 
 }  // namespace http
 }  // namespace gabby

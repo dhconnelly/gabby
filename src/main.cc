@@ -1,11 +1,8 @@
 #include <iostream>
 #include <string_view>
 
-#include "api/openai.h"
-#include "http/router.h"
-#include "http/server.h"
-#include "http/types.h"
-#include "log.h"
+#include "service.h"
+#include "utils/logging.h"
 
 namespace gabby {
 
@@ -14,17 +11,13 @@ namespace gabby {
     std::exit(1);
 }
 
-struct Config {
-    int port;
-    LogLevel log_level;
-};
-
-Config kDefaultConfig{.port = 8080, .log_level = LogLevel::OFF};
-
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     return os << "{ port: " << config.port
+              << ", models_dir: " << config.models_dir
               << ", log_level: " << config.log_level << " }";
 }
+
+Config kDefaultConfig{.port = 8080, .log_level = LogLevel::OFF};
 
 Config ParseArgs(int argc, char* argv[]) {
     Config config = kDefaultConfig;
@@ -45,23 +38,13 @@ Config ParseArgs(int argc, char* argv[]) {
     return config;
 }
 
-http::Handler HealthCheck() {
-    return [](const http::Request& req, http::ResponseWriter& resp) {
-        resp.SendStatus(http::StatusCode::OK);
-    };
-}
-
 void Run(int argc, char* argv[]) {
-    auto config = gabby::ParseArgs(argc, argv);
-    SetGlobalLogLevel(config.log_level);
+    auto config = ParseArgs(argc, argv);
     LOG(INFO) << "server config: " << config;
-
-    http::HttpServer server(http::HttpServerConfig{.port = config.port},
-                            http::Router::builder()
-                                .route("/healthz", HealthCheck())
-                                .route("/v1/.*", api::BuildOpenAIAPI())
-                                .build());
-    server.run();
+    SetGlobalLogLevel(config.log_level);
+    InferenceService service(config);
+    service.start();
+    // TODO: handle graceful shutdown
 }
 
 }  // namespace gabby

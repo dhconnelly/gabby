@@ -12,10 +12,9 @@ struct HttpServerConfig {
 
 class HttpServer {
 public:
-    HttpServer(const HttpServerConfig& config, Handler handler)
-        : port_(config.port) {}
-
-    void run();
+    HttpServer(const HttpServerConfig& config, Handler handler);
+    void start();
+    void stop();
 
 private:
     int port_;

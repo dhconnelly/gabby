@@ -27,7 +27,7 @@ public:
     };
 
     static Builder builder() { return Builder(); }
-    void handle(const Request& request, ResponseWriter& response);
+    void handle(Request& request, ResponseWriter& response);
 
 private:
     std::vector<Route> routes_;

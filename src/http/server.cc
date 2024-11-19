@@ -2,12 +2,19 @@
 
 #include <format>
 
-#include "log.h"
+#include "utils/logging.h"
 
 namespace gabby {
 namespace http {
 
-void HttpServer::run() { LOG(INFO) << "starting web server at port " << port_; }
+HttpServer::HttpServer(const HttpServerConfig& config, Handler handler)
+    : port_(config.port), handler_(handler) {}
+
+void HttpServer::start() {
+    LOG(INFO) << "starting http server at port " << port_;
+}
+
+void HttpServer::stop() { LOG(INFO) << "stopping http server"; }
 
 }  // namespace http
 }  // namespace gabby

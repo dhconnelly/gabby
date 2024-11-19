@@ -1,14 +1,13 @@
-#ifndef GABBY_LOG_H_
-#define GABBY_LOG_H_
+#ifndef GABBY_UTILS_LOGGING_H_
+#define GABBY_UTILS_LOGGING_H_
 
-#include <chrono>
-#include <format>
+#include <ostream>
 #include <sstream>
 
 namespace gabby {
 
 // usage: LOG(INFO) << "hello, world";
-#define LOG(level) Logger(__FILE__, __LINE__, level).stream()
+#define LOG(level) gabby::Logger(__FILE__, __LINE__, level).stream()
 
 enum LogLevel {
     OFF = 0,
@@ -35,4 +34,4 @@ private:
 
 }  // namespace gabby
 
-#endif  // GABBY_LOG_H_
+#endif  // GABBY_UTILS_LOGGING_H_
