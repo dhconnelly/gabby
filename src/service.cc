@@ -27,14 +27,14 @@ http::Handler InferenceService::ChatCompletion() {
     };
 }
 
-void InferenceService::start() {
+void InferenceService::Start() {
     //
-    server_.start();
+    server_.Start();
 }
 
-void InferenceService::stop() {
+void InferenceService::Stop() {
     //
-    server_.stop();
+    server_.Stop();
 }
 
 }  // namespace gabby

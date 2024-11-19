@@ -52,7 +52,7 @@ constexpr const char* signame(int signal) {
 
 void shutdown(int signal) {
     LOG(INFO) << "received " << signame(signal);
-    service->stop();
+    service->Stop();
 }
 
 void Run(int argc, char* argv[]) {
@@ -62,7 +62,7 @@ void Run(int argc, char* argv[]) {
     service = new InferenceService(config);
     std::signal(SIGINT, shutdown);
     std::signal(SIGTERM, shutdown);
-    service->start();
+    service->Start();
 }
 
 }  // namespace gabby

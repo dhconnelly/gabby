@@ -17,8 +17,8 @@ struct Config {
 class InferenceService {
 public:
     InferenceService(Config config);
-    void start();
-    void stop();
+    void Start();
+    void Stop();
 
 private:
     http::Handler HealthCheck();
