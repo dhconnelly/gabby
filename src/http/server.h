@@ -22,7 +22,20 @@ public:
 private:
     void listen();
 
-    int port_;
+    class ServerSocket {
+    public:
+        ServerSocket(int port);
+        void listen();
+        int fd() { return fd_; }
+        int port() { return port_; }
+        ~ServerSocket();
+
+    private:
+        int port_;
+        int fd_;
+    };
+
+    ServerSocket sock_;
     Handler handler_;
     std::atomic<bool> running_;
     std::unique_ptr<std::thread> listener_thread_;

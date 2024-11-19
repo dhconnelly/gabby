@@ -11,9 +11,10 @@ namespace gabby {
 
 enum LogLevel {
     OFF = 0,
-    INFO = 1,
-    WARN = 2,
-    DEBUG = 3,
+    ERROR = 1,
+    INFO = 2,
+    WARN = 3,
+    DEBUG = 4,
 };
 
 std::ostream& operator<<(std::ostream& os, LogLevel level);
