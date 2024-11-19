@@ -1,3 +1,5 @@
+#include <csignal>
+#include <cstring>
 #include <iostream>
 #include <string_view>
 
@@ -38,13 +40,29 @@ Config ParseArgs(int argc, char* argv[]) {
     return config;
 }
 
+static InferenceService* service = nullptr;
+
+constexpr const char* signame(int signal) {
+    switch (signal) {
+        case SIGINT: return "SIGINT";
+        case SIGTERM: return "SIGTERM";
+        default: return "";
+    }
+}
+
+void shutdown(int signal) {
+    LOG(INFO) << "received " << signame(signal);
+    service->stop();
+}
+
 void Run(int argc, char* argv[]) {
     auto config = ParseArgs(argc, argv);
     LOG(INFO) << "server config: " << config;
     SetGlobalLogLevel(config.log_level);
-    InferenceService service(config);
-    service.start();
-    // TODO: handle graceful shutdown
+    service = new InferenceService(config);
+    std::signal(SIGINT, shutdown);
+    std::signal(SIGTERM, shutdown);
+    service->start();
 }
 
 }  // namespace gabby
