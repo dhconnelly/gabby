@@ -21,5 +21,20 @@ std::string to_string(Method method) {
     }
 }
 
+/* static */
+Request Request::ParseFrom(int fd) {
+    // TODO
+    throw RequestParsingException("unimplemented");
+}
+
+void ResponseWriter::WriteStatus(StatusCode status) {
+    status_ = status;
+    // TODO
+}
+
+void ResponseWriter::Write(std::string_view data) {
+    // TODO
+}
+
 }  // namespace http
 }  // namespace gabby

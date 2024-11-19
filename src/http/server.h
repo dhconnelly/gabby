@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 
 #include <memory>
+#include <optional>
 #include <thread>
 
 #include "http/types.h"
@@ -53,7 +54,7 @@ public:
 private:
     void Listen();
     void Handle(ClientSocket&& sock);
-    Request ParseRequest(ClientSocket& sock);
+    std::optional<Request> ParseRequest(ClientSocket& sock);
 
     ServerSocket sock_;
     Handler handler_;

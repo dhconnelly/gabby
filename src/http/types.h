@@ -26,12 +26,24 @@ enum class Method {
 std::string to_string(StatusCode code);
 std::string to_string(Method method);
 
+class RequestParsingException : public std::exception {
+public:
+    explicit RequestParsingException(std::string what) : what_(what) {}
+    const char* what() const noexcept override { return what_.c_str(); }
+
+private:
+    std::string what_;
+};
+
 struct Request {
     std::string addr;
     Method method;
+    std::string user_agent;
     std::string path;
     std::unordered_map<std::string, std::string> params;
     int fd;
+
+    static Request ParseFrom(int fd);
 };
 
 class ResponseWriter {
@@ -42,11 +54,11 @@ public:
     // writes an http header with the specified status code. it is an
     // error to call this twice or after any other data has been sent.
     // TODO: return a different object here to enfroce this.
-    virtual void WriteStatus(StatusCode code) {}
+    virtual void WriteStatus(StatusCode code);
 
     // writes the specified data into the response. if a status has not
     // already been sent, this will write StatusCode::OK first.
-    virtual void Write(std::string_view data) {}
+    virtual void Write(std::string_view data);
 
     StatusCode status() { return status_; }
     int bytes_written() { return bytes_written_; }
@@ -54,7 +66,7 @@ public:
 private:
     int fd_;
     StatusCode status_;
-    int bytes_written_;
+    int bytes_written_ = 0;
 };
 
 using Handler = std::function<void(Request& request, ResponseWriter& response)>;

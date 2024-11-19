@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cstring>
 #include <format>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 
@@ -92,18 +93,20 @@ void HttpServer::Listen() {
 
 void HttpServer::Handle(ClientSocket&& sock) {
     LOG(DEBUG) << "handling client " << sock.addr() << ":" << sock.port();
-    auto req = ParseRequest(sock);
     ResponseWriter resp(sock.fd());
+    Request req;
+    try {
+        req = Request::ParseFrom(sock.fd());
+    } catch (const RequestParsingException& e) {
+        LOG(INFO) << sock.addr() << " - INVALID REQUEST 400 0";
+        resp.WriteStatus(StatusCode::BadRequest);
+        resp.Write(e.what());
+        return;
+    }
+    LOG(INFO) << sock.addr() << " - " << to_string(req.method) << " "
+              << req.path << " HTTP/1.1 " << int(resp.status()) << " "
+              << resp.bytes_written() << " " << req.user_agent;
     handler_(req, resp);
-    LOG(INFO) << to_string(req.method) << " " << req.path << " HTTP/1.1 "
-              << int(resp.status()) << " " << resp.bytes_written()
-              << " \"UNKNOWN\"";
-}
-
-Request HttpServer::ParseRequest(ClientSocket& sock) {
-    // TODO
-    Request req{.addr = sock.addr()};
-    return req;
 }
 
 }  // namespace http
