@@ -41,15 +41,15 @@ struct Request {
     std::string user_agent;
     std::string path;
     std::unordered_map<std::string, std::string> params;
-    int fd;
+    FILE* stream;
 
-    static Request ParseFrom(int fd);
+    static Request ParseFrom(FILE* stream);
 };
 
 class ResponseWriter {
 public:
-    explicit ResponseWriter(int fd) : fd_(fd) {}
-    virtual ~ResponseWriter() = default;
+    explicit ResponseWriter(FILE* stream) : stream_(stream) {}
+    virtual ~ResponseWriter() { fflush(stream_); }
 
     // writes an http header with the specified status code. it is an
     // error to call this twice or after any other data has been sent.
@@ -64,7 +64,7 @@ public:
     int bytes_written() { return bytes_written_; }
 
 private:
-    int fd_;
+    FILE* stream_;
     StatusCode status_;
     int bytes_written_ = 0;
 };

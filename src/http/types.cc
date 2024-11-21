@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "unistd.h"
+
 namespace gabby {
 namespace http {
 
@@ -21,9 +23,18 @@ std::string to_string(Method method) {
     }
 }
 
+constexpr int kMaxHeaderLineLen = 256;
+
+bool ReadLine(int fd, char buf[], int maxlen) {
+    int read = 0;
+    while (true) {
+        int n = ::read(fd, buf, maxlen - read);
+        if (n < 0) throw std::system_error(errno, std::system_category());
+    }
+}
+
 /* static */
-Request Request::ParseFrom(int fd) {
-    // TODO
+Request Request::ParseFrom(FILE *stream) {
     throw RequestParsingException("unimplemented");
 }
 
