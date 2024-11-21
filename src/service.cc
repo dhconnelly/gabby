@@ -9,7 +9,7 @@ namespace gabby {
 InferenceService::InferenceService(Config config)
     : config_(config),
       models_(model::LoadModels(config.models_dir)),
-      server_(http::HttpServerConfig{.port = config.port},
+      server_(config_.server_config,
               http::Router::builder()
                   .route("/healthz", HealthCheck())
                   .route("/v1/chat/completion", ChatCompletion())

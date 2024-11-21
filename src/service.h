@@ -10,8 +10,8 @@ namespace gabby {
 
 struct Config {
     LogLevel log_level;
-    int port;
     std::string models_dir;
+    http::ServerConfig server_config;
 };
 
 class InferenceService {

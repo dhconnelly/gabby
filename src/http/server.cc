@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <cassert>
 #include <cerrno>
 #include <chrono>
 #include <cstring>
@@ -61,7 +62,18 @@ ClientSocket ServerSocket::Accept() {
     return ClientSocket(client_fd, client_addr);
 }
 
-HttpServer::HttpServer(const HttpServerConfig& config, Handler handler)
+Pipe::Pipe() {
+    if (::pipe(fds_) < 0) {
+        throw std::system_error(errno, std::system_category());
+    }
+}
+
+Pipe::~Pipe() {
+    close(fds_[0]);
+    close(fds_[1]);
+}
+
+HttpServer::HttpServer(const ServerConfig& config, Handler handler)
     : sock_(config.port), handler_(handler) {}
 
 void HttpServer::Start() {
@@ -75,23 +87,35 @@ void HttpServer::Start() {
 void HttpServer::Stop() {
     LOG(INFO) << "stopping http server...";
     running_ = false;
+    char done = 1;
+    write(exit_pipe_.writefd(), &done, 1);
 }
 
 void HttpServer::Listen() {
     sock_.Listen();
     LOG(INFO) << "listening at port " << sock_.port();
-    struct pollfd fds[1];
+    struct pollfd fds[2];
     fds[0].fd = sock_.fd();
     fds[0].events = POLLIN;
+    fds[1].fd = exit_pipe_.readfd();
+    fds[1].events = POLLIN;
     while (running_) {
-        int ret = poll(fds, 1, 100 /*ms*/);
+        int ret = poll(fds, 2, -1);
+        assert(ret != 0);  // impossible: no timeout
         if (ret < 0) throw std::system_error(errno, std::system_category());
-        if (ret > 0) Handle(sock_.Accept());
+        if (fds[0].revents & POLLIN) {
+            Handle(sock_.Accept());
+        } else {
+            assert(fds[1].revents & POLLIN);
+            break;
+        }
     }
     LOG(DEBUG) << "server stopped, exiting listener";
 }
 
 void HttpServer::Handle(ClientSocket&& sock) {
+    // TODO: concurrency
+
     LOG(DEBUG) << "handling client " << sock.addr() << ":" << sock.port();
     ResponseWriter resp(sock.fd());
     Request req;

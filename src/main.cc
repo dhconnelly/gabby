@@ -1,5 +1,6 @@
 #include <csignal>
 #include <cstring>
+#include <format>
 #include <iostream>
 #include <string_view>
 
@@ -13,28 +14,60 @@ namespace gabby {
     std::exit(1);
 }
 
-std::ostream& operator<<(std::ostream& os, const Config& config) {
-    return os << "{ port: " << config.port
-              << ", models_dir: " << config.models_dir
-              << ", log_level: " << config.log_level << " }";
+std::ostream& operator<<(std::ostream& os, const http::ServerConfig& config) {
+    return os << "{ port: " << config.port                                  //
+              << ", read_timeout_millis: " << config.read_timeout_millis    //
+              << ", write_timeout_millis: " << config.write_timeout_millis  //
+              << ", idle_timeout_millis: " << config.idle_timeout_millis    //
+              << " }";
 }
 
-Config kDefaultConfig{.port = 8080, .log_level = LogLevel::OFF};
+std::ostream& operator<<(std::ostream& os, const Config& config) {
+    return os << "{ server_config: " << config.server_config  //
+              << ", models_dir: " << config.models_dir        //
+              << ", log_level: " << config.log_level          //
+              << " }";
+}
+
+Config kDefaultConfig{
+    .server_config =
+        http::ServerConfig{
+            .port = 8080,
+            .idle_timeout_millis = 120'000,
+            .read_timeout_millis = 5'000,
+            .write_timeout_millis = 10'000,
+        },
+    .log_level = LogLevel::OFF,
+};
+
+bool ParseIntFlag(int argc, char* argv[], std::string_view flag, int* argi,
+                  int* val) {
+    if (argv[*argi] != flag) return false;
+    if (*argi + 1 == argc) Die(std::format("missing argument for {}", flag));
+    *val = std::stoi(argv[*argi + 1]);
+    (*argi)++;
+    return true;
+}
 
 Config ParseArgs(int argc, char* argv[]) {
     Config config = kDefaultConfig;
-    for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "--port") == 0) {
-            if (i == argc - 1) Die("missing argument for --port");
-            int port = atoi(argv[i + 1]);
-            if (port == 0) Die("invalid --port argument");
-            config.port = port;
+    for (int i = 1; i < argc; i++) {
+        if (ParseIntFlag(argc, argv, "--port", &i,
+                         &config.server_config.port)) {
+        } else if (ParseIntFlag(argc, argv, "--idle_timeout_millis", &i,
+                                &config.server_config.idle_timeout_millis)) {
+        } else if (ParseIntFlag(argc, argv, "--read_timeout_millis", &i,
+                                &config.server_config.read_timeout_millis)) {
+        } else if (ParseIntFlag(argc, argv, "--write_timeout_millis", &i,
+                                &config.server_config.write_timeout_millis)) {
         } else if (strcmp(argv[i], "--info") == 0) {
             config.log_level = LogLevel::INFO;
         } else if (strcmp(argv[i], "--warn") == 0) {
             config.log_level = LogLevel::WARN;
         } else if (strcmp(argv[i], "--debug") == 0) {
             config.log_level = LogLevel::DEBUG;
+        } else {
+            Die(std::format("invalid argument: {}", argv[i]));
         }
     }
     return config;

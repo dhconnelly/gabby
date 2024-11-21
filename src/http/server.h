@@ -40,24 +40,37 @@ private:
     int fd_;
 };
 
-struct HttpServerConfig {
+class Pipe {
+public:
+    Pipe();
+    ~Pipe();
+    int readfd() { return fds_[0]; }
+    int writefd() { return fds_[1]; }
+
+private:
+    int fds_[2];
+};
+
+struct ServerConfig {
     int port;
-    int shutdown_timeout;
+    int read_timeout_millis;
+    int write_timeout_millis;
+    int idle_timeout_millis;
 };
 
 class HttpServer {
 public:
-    HttpServer(const HttpServerConfig& config, Handler handler);
+    HttpServer(const ServerConfig& config, Handler handler);
     void Start();
     void Stop();
 
 private:
     void Listen();
     void Handle(ClientSocket&& sock);
-    std::optional<Request> ParseRequest(ClientSocket& sock);
 
     ServerSocket sock_;
     Handler handler_;
+    Pipe exit_pipe_;
     std::atomic<bool> running_;
     std::unique_ptr<std::thread> listener_thread_;
 };
