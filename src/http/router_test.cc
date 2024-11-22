@@ -34,7 +34,7 @@ struct SimpleResponseWriter : public http::ResponseWriter {
 };
 
 TEST(Router, NoRoutesReturnsNotFound) {
-    Request req{.addr = "1.2.3.4", .params = {}, .path = "/"};
+    Request req{.addr = "1.2.3.4", .path = "/"};
     SimpleResponseWriter resp;
     auto handler = Router::builder().build();
     handler(req, resp);
@@ -42,7 +42,7 @@ TEST(Router, NoRoutesReturnsNotFound) {
 }
 
 TEST(Router, NoMatchesReturnsNotFound) {
-    Request req{.addr = "1.2.3.4", .params = {}, .path = "/"};
+    Request req{.addr = "1.2.3.4", .path = "/"};
     SimpleResponseWriter resp;
     auto handler = Router::builder()
                        .route("/foo", ErrorHandler)
@@ -53,7 +53,7 @@ TEST(Router, NoMatchesReturnsNotFound) {
 }
 
 TEST(Router, FirstMatchOnlyHandled) {
-    Request req{.addr = "1.2.3.4", .params = {}, .path = "/foo/bar/baz"};
+    Request req{.addr = "1.2.3.4", .path = "/foo/bar/baz"};
     SimpleResponseWriter resp;
     auto handler = Router::builder()
                        .route("/foo/baz", ErrorHandler)
