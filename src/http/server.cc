@@ -156,9 +156,6 @@ void HttpServer::Listen() {
         if (ret < 0) throw std::system_error(errno, std::system_category());
         if (fds[0].revents & POLLIN) {
             Handle(sock_.Accept());
-        } else {
-            assert(fds[1].revents & POLLIN);
-            break;
         }
     }
     LOG(DEBUG) << "server stopped, exiting listener";

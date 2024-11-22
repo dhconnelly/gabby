@@ -32,7 +32,7 @@ private:
     ServerConfig config_;
     ServerSocket sock_;
     Handler handler_;
-    int pipe_fds_[2];
+    int pipe_fds_[2];  // read, write
     std::atomic<bool> running_;
     std::unique_ptr<std::thread> listener_thread_;
 };
