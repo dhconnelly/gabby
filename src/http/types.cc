@@ -31,7 +31,7 @@ void ResponseWriter::Write(std::string_view s) {
     if (s.size() == 0) return;
     if (fwrite(s.data(), 1, s.size(), stream_) == 0) {
         LOG(ERROR) << std::format("failed to write to socket: {}",
-                                  strerror(errno));
+                                  std::strerror(errno));
         throw InternalError("failed to write data");
     }
 }
@@ -66,7 +66,8 @@ void ResponseWriter::WriteData(std::string_view data) {
         sending_data_ = true;
     }
     if (fwrite(data.data(), 1, data.size(), stream_) < data.size()) {
-        LOG(ERROR) << std::format("failed to write data: {}", strerror(errno));
+        LOG(ERROR) << std::format("failed to write data: {}",
+                                  std::strerror(errno));
         throw InternalError("failed to send data");
     }
 }
