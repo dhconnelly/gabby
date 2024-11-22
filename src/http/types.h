@@ -2,6 +2,7 @@
 #define GABBY_HTTP_TYPES_H_
 
 #include <functional>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <unordered_map>
