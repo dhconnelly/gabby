@@ -30,14 +30,15 @@ std::ostream& operator<<(std::ostream& os, const Config& config) {
 }
 
 Config kDefaultConfig{
+    .log_level = LogLevel::OFF,
+    .models_dir = "",
     .server_config =
         http::ServerConfig{
             .port = 8080,
-            .idle_timeout_millis = 120'000,
             .read_timeout_millis = 5'000,
             .write_timeout_millis = 10'000,
+            .idle_timeout_millis = 120'000,
         },
-    .log_level = LogLevel::OFF,
 };
 
 bool ParseIntFlag(int argc, char* argv[], std::string_view flag, int* argi,
