@@ -1,5 +1,6 @@
 #include "http/types.h"
 
+#include <format>
 #include <iostream>
 
 #include "unistd.h"
