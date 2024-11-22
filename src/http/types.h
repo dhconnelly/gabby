@@ -15,7 +15,38 @@ enum class StatusCode : int {
     OK = 200,
     BadRequest = 400,
     NotFound = 404,
+    RequestTimeout = 408,
     InternalServerError = 500,
+};
+
+class HttpException : public std::exception {
+public:
+    explicit HttpException(std::string what) : what_(what) {}
+    const char* what() const noexcept override { return what_.c_str(); }
+    virtual StatusCode status() const = 0;
+
+private:
+    std::string what_;
+};
+
+class InternalError : public HttpException {
+public:
+    explicit InternalError(std::string what) : HttpException(what) {}
+    StatusCode status() const override {
+        return StatusCode::InternalServerError;
+    }
+};
+
+class BadRequestException : public HttpException {
+public:
+    explicit BadRequestException(std::string what) : HttpException(what) {}
+    StatusCode status() const override { return StatusCode::BadRequest; }
+};
+
+class TimeoutException : public HttpException {
+public:
+    explicit TimeoutException() : HttpException("request timeout") {}
+    StatusCode status() const override { return StatusCode::RequestTimeout; }
 };
 
 enum class Method {
@@ -26,24 +57,13 @@ enum class Method {
 std::string to_string(StatusCode code);
 std::string to_string(Method method);
 
-class RequestParsingException : public std::exception {
-public:
-    explicit RequestParsingException(std::string what) : what_(what) {}
-    const char* what() const noexcept override { return what_.c_str(); }
-
-private:
-    std::string what_;
-};
-
 struct Request {
     std::string addr;
     Method method;
-    std::string user_agent;
     std::string path;
+    std::unordered_map<std::string, std::string> headers;
     std::unordered_map<std::string, std::string> params;
     FILE* stream;
-
-    static Request ParseFrom(FILE* stream);
 };
 
 class ResponseWriter {
@@ -56,16 +76,25 @@ public:
     // TODO: return a different object here to enfroce this.
     virtual void WriteStatus(StatusCode code);
 
+    // writes the specified http header. it is an error to call this
+    // after any other data has been sent.
+    // TODO: return a different object here to enfroce this.
+    virtual void WriteHeader(std::string key, std::string value);
+
     // writes the specified data into the response. if a status has not
     // already been sent, this will write StatusCode::OK first.
-    virtual void Write(std::string_view data);
+    virtual void WriteData(std::string_view data);
 
-    StatusCode status() { return status_; }
+    std::optional<StatusCode> status() { return status_; }
     int bytes_written() { return bytes_written_; }
 
 private:
+    void Write(std::string_view s);
+
     FILE* stream_;
-    StatusCode status_;
+    std::optional<StatusCode> status_;
+    std::unordered_map<std::string, std::string> headers_;
+    bool sending_data_ = false;
     int bytes_written_ = 0;
 };
 

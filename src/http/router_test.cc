@@ -12,7 +12,7 @@ namespace http {
 Handler SimpleHandler(StatusCode code, std::string data = "") {
     return [code, data](Request& req, ResponseWriter& resp) {
         resp.WriteStatus(code);
-        resp.Write(std::string_view(data));
+        resp.WriteData(std::string_view(data));
     };
 }
 
@@ -23,9 +23,13 @@ struct SimpleResponseWriter : public http::ResponseWriter {
     SimpleResponseWriter() : http::ResponseWriter(0) {}
 
     void WriteStatus(http::StatusCode code) override { this->code = code; }
-    void Write(std::string_view data) override { this->data = data; }
+    void WriteHeader(std::string key, std::string value) override {
+        headers_[key] = value;
+    }
+    void WriteData(std::string_view data) override { this->data = data; }
 
     http::StatusCode code;
+    std::unordered_map<std::string, std::string> headers_;
     std::string data;
 };
 
