@@ -17,6 +17,8 @@ public:
         Handler handler;
     };
 
+    Router(std::vector<Route>&& routes) : routes_(routes) {}
+
     class Builder {
     public:
         Builder& route(std::string pat, Handler handler);
@@ -31,7 +33,6 @@ public:
 
 private:
     std::vector<Route> routes_;
-    Router(std::vector<Route>&& routes) : routes_(routes) {}
 };
 
 }  // namespace http

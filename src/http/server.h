@@ -21,9 +21,10 @@ struct ServerConfig {
 class HttpServer {
 public:
     HttpServer(const ServerConfig& config, Handler handler);
-    ~HttpServer();
     void Start();
+    void Wait();
     void Stop();
+    int port() { return sock_.port(); }
 
 private:
     void Listen();
@@ -32,8 +33,9 @@ private:
     ServerConfig config_;
     ServerSocket sock_;
     Handler handler_;
-    int pipe_fds_[2];  // read, write
-    std::atomic<bool> running_;
+    Pipe pipe_;
+    std::unique_ptr<std::atomic<bool>> run_;
+    std::unique_ptr<std::atomic<bool>> running_;
     std::unique_ptr<std::thread> listener_thread_;
 };
 

@@ -28,12 +28,14 @@ std::string to_string(Method method) {
 }
 
 void ResponseWriter::Write(std::string_view s) {
+    LOG(DEBUG) << "sending " << s.size() << " bytes";
     if (s.size() == 0) return;
     if (fwrite(s.data(), 1, s.size(), stream_) == 0) {
         LOG(ERROR) << std::format("failed to write to socket: {}",
                                   strerror(errno));
         throw InternalError("failed to write data");
     }
+    bytes_written_ += s.size();
 }
 
 void ResponseWriter::WriteStatus(StatusCode status) {

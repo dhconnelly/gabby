@@ -116,41 +116,42 @@ void ParseRequest(Request* req, FILE* stream) {
 }  // namespace
 
 HttpServer::HttpServer(const ServerConfig& config, Handler handler)
-    : config_(config), sock_(config.port), handler_(handler) {
-    if (::pipe(pipe_fds_) < 0) {
-        throw std::system_error(errno, std::system_category());
-    }
-}
-
-HttpServer::~HttpServer() {
-    close(pipe_fds_[0]);
-    close(pipe_fds_[1]);
-}
+    : config_(config),
+      sock_(config.port),
+      handler_(handler),
+      running_(new std::atomic(false)),
+      run_(new std::atomic(false)) {}
 
 void HttpServer::Start() {
-    LOG(INFO) << "starting http server at port " << sock_.port();
-    running_ = true;
+    *run_ = true;
     listener_thread_ = std::make_unique<std::thread>(&HttpServer::Listen, this);
-    listener_thread_->join();
-    LOG(INFO) << "http server stopped";
+    LOG(DEBUG) << "waiting for server to be ready";
+    running_->wait(false);
+    LOG(DEBUG) << "server running";
 }
 
+void HttpServer::Wait() { listener_thread_->join(); }
+
 void HttpServer::Stop() {
-    LOG(INFO) << "stopping http server...";
-    running_ = false;
+    *run_ = false;
     char done = 1;
-    write(pipe_fds_[1], &done, 1);
+    write(pipe_.writefd(), &done, 1);
+    running_->wait(true);
+    LOG(DEBUG) << "server stopped running";
 }
 
 void HttpServer::Listen() {
     sock_.Listen();
-    LOG(INFO) << "listening at port " << sock_.port();
+    *running_ = true;
+    running_->notify_one();
+    LOG(INFO) << "http server listening at port " << sock_.port();
+
     struct pollfd fds[2];
     fds[0].fd = sock_.fd();
     fds[0].events = POLLIN;
-    fds[1].fd = pipe_fds_[0];
+    fds[1].fd = pipe_.readfd();
     fds[1].events = POLLIN;
-    while (running_) {
+    while (*run_) {
         int ret = poll(fds, 2, -1);
         assert(ret != 0);  // impossible: no timeout
         if (ret < 0) throw std::system_error(errno, std::system_category());
@@ -158,7 +159,10 @@ void HttpServer::Listen() {
             Handle(sock_.Accept());
         }
     }
-    LOG(DEBUG) << "server stopped, exiting listener";
+
+    *running_ = false;
+    running_->notify_one();
+    LOG(INFO) << "http server stopped";
 }
 
 void HttpServer::Handle(ClientSocket&& sock) {
@@ -187,6 +191,9 @@ void HttpServer::Handle(ClientSocket&& sock) {
     try {
         ParseRequest(&req, stream.get());
         handler_(req, resp);
+        if (!resp.status().has_value()) {
+            throw InternalError("no response sent");
+        }
     } catch (const HttpException& e) {
         LOG(WARN) << e.what();
         LOG(INFO) << sock.addr() << " - " << to_string(e.status()) << " "
