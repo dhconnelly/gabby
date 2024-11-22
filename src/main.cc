@@ -97,6 +97,7 @@ void Run(int argc, char* argv[]) {
     std::signal(SIGINT, shutdown);
     std::signal(SIGTERM, shutdown);
     service->Start();
+    service->Wait();
 }
 
 }  // namespace gabby

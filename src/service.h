@@ -18,6 +18,7 @@ class InferenceService {
 public:
     explicit InferenceService(Config config);
     void Start();
+    void Wait();
     void Stop();
 
 private:

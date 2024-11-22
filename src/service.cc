@@ -32,6 +32,11 @@ void InferenceService::Start() {
     server_.Start();
 }
 
+void InferenceService::Wait() {
+    //
+    server_.Wait();
+}
+
 void InferenceService::Stop() {
     //
     server_.Stop();
