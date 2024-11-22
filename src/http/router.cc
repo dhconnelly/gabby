@@ -25,9 +25,10 @@ Router::Builder& Router::Builder::route(std::string pat, Handler handler) {
 }
 
 Handler Router::Builder::build() {
-    auto router = std::make_shared<Router>(std::move(routes_));
-    return [router](Request& req, ResponseWriter& resp) mutable {
-        router->handle(req, resp);
+    Router router(std::move(routes_));
+    return [router = std::move(router)](Request& req,
+                                        ResponseWriter& resp) mutable {
+        router.handle(req, resp);
     };
 }
 
