@@ -55,6 +55,7 @@ enum class Method {
     POST,
 };
 
+std::ostream& operator<<(std::ostream&, Method method);
 std::string to_string(StatusCode code);
 std::string to_string(Method method);
 
@@ -63,9 +64,10 @@ struct Request {
     Method method;
     std::string path;
     std::unordered_map<std::string, std::string> headers;
-    std::unordered_map<std::string, std::string> params;
     FILE* stream;
 };
+
+std::ostream& operator<<(std::ostream& os, const Request& req);
 
 class ResponseWriter {
 public:

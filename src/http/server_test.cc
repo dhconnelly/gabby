@@ -11,9 +11,12 @@
 #include <memory>
 #include <stdexcept>
 
-#include "utils/logging.h"
-
+using testing::AllOf;
+using testing::Eq;
+using testing::Field;
 using testing::HasSubstr;
+using testing::Pair;
+using testing::UnorderedElementsAre;
 
 namespace gabby {
 namespace http {
@@ -81,26 +84,57 @@ std::string Call(int port, Method method, const std::string_view path,
     return sock.ReadAll();
 }
 
-HttpServer TestServer(Handler h) {
-    SetGlobalLogLevel(LogLevel::DEBUG);
-    HttpServer server(kTestConfig, h);
-    return std::move(server);
+class TestServer {
+public:
+    TestServer(Handler h) : server_(kTestConfig, h) { server_.Start(); }
+
+    int port() { return server_.port(); }
+
+    ~TestServer() {
+        server_.Stop();
+        server_.Wait();
+    }
+
+private:
+    HttpServer server_;
+};
+
+TEST(HttpServer, ParseRequest) {
+    std::shared_ptr<std::atomic<bool>> done(new std::atomic(false));
+    Request received;
+    auto server =
+        TestServer([&received, done](const Request& req, ResponseWriter& resp) {
+            *done = true;
+            received = req;
+            resp.WriteStatus(StatusCode::OK);
+        });
+    auto result = Call(server.port(), Method::GET, "/foo", {});
+    EXPECT_THAT(result, HasSubstr("HTTP/1.1 200 OK"));
+    EXPECT_THAT(received, AllOf(Field(&Request::method, Method::GET),
+                                Field(&Request::path, "/foo")));
 }
 
-TEST(HttpServer, Handle) {
+TEST(HttpServer, ParseHeaders) {
     std::shared_ptr<std::atomic<bool>> done(new std::atomic(false));
-    auto server = TestServer([done](const Request& req, ResponseWriter& resp) {
-        *done = true;
-        resp.WriteStatus(StatusCode::OK);
-    });
-    LOG(DEBUG) << "created test server, starting it";
-    server.Start();
-    LOG(DEBUG) << "calling test server";
-    auto resp = Call(server.port(), Method::GET, "/", {});
-    EXPECT_THAT(resp, HasSubstr("HTTP/1.1 200 OK"));
-    LOG(DEBUG) << "got response: " << resp;
-    server.Stop();
-    server.Wait();
+    Request received;
+    auto server =
+        TestServer([&received, done](const Request& req, ResponseWriter& resp) {
+            *done = true;
+            received = req;
+            resp.WriteStatus(StatusCode::OK);
+        });
+    auto result = Call(server.port(), Method::GET, "/foo",
+                       {
+                           {"a", "b"},
+                           {"1", "2"},
+                       });
+    EXPECT_THAT(result, HasSubstr("HTTP/1.1 200 OK"));
+    EXPECT_THAT(
+        received,
+        AllOf(Field(&Request::method, Method::GET),
+              Field(&Request::path, "/foo"),
+              Field(&Request::headers,
+                    UnorderedElementsAre(Pair("a", "b"), Pair("1", "2")))));
 }
 
 }  // namespace http

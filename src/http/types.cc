@@ -27,6 +27,24 @@ std::string to_string(Method method) {
     }
 }
 
+std::ostream& operator<<(std::ostream& os, Method method) {
+    return os << to_string(method);
+}
+
+std::ostream& operator<<(std::ostream& os, const Request& req) {
+    os << "{ ";
+    os << std::format("addr: {}", req.addr);
+    os << std::format(", method: {}", to_string(req.method));
+    os << std::format(", path: {}", req.path);
+    os << ", headers: { ";
+    for (const auto& [k, v] : req.headers) {
+        os << std::format("{}: {}", k, v);
+    }
+    os << " }";
+    os << " }";
+    return os;
+}
+
 void ResponseWriter::Write(std::string_view s) {
     LOG(DEBUG) << "sending " << s.size() << " bytes";
     if (s.size() == 0) return;
