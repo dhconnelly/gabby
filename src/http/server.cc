@@ -23,7 +23,7 @@ class Stream {
 public:
     explicit Stream(int fd) {
         if ((f_ = fdopen(fd, "r+")) == nullptr) {
-            throw std::system_error(errno, std::system_category());
+            throw SystemError(errno);
         }
     }
 
@@ -104,23 +104,36 @@ void ParseRequest(Request* req, FILE* stream) {
     std::string_view line = ReadLine(buf, stream);
     if (line.empty()) throw BadRequestException("missing request line");
     req->method = ParseMethod(line);
+    LOG(DEBUG) << "got method " << req->method;
     req->path = ParsePath(line);
+    LOG(DEBUG) << "got path " << req->path;
 
+    LOG(DEBUG) << "parsing headers";
     while (!(line = ReadLine(buf, stream)).empty()) {
         req->headers.insert(ParseHeader(line));
     }
 
+    LOG(DEBUG) << "parsed request: " << *req;
     req->stream = stream;
 }
 
 }  // namespace
+
+std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
+    return os << "{ port: " << config.port
+              << ", read_timeout_millis: " << config.read_timeout_millis
+              << ", write_timeout_millis: " << config.write_timeout_millis
+              << " }";
+}
 
 HttpServer::HttpServer(const ServerConfig& config, Handler handler)
     : config_(config),
       sock_(config.port),
       handler_(handler),
       running_(new std::atomic(false)),
-      run_(new std::atomic(false)) {}
+      run_(new std::atomic(false)) {
+    LOG(DEBUG) << config_;
+}
 
 void HttpServer::Start() {
     *run_ = true;
@@ -130,7 +143,11 @@ void HttpServer::Start() {
     LOG(DEBUG) << "server running";
 }
 
-void HttpServer::Wait() { listener_thread_->join(); }
+void HttpServer::Wait() {
+    LOG(DEBUG) << "waiting on server to stop";
+    listener_thread_->join();
+    LOG(DEBUG) << "server stopped, done waiting";
+}
 
 void HttpServer::Stop() {
     *run_ = false;
@@ -138,6 +155,18 @@ void HttpServer::Stop() {
     write(pipe_.writefd(), &done, 1);
     running_->wait(true);
     LOG(DEBUG) << "server stopped running";
+}
+
+void HttpServer::Accept() {
+    try {
+        Handle(sock_.Accept());
+    } catch (std::system_error& e) {
+        if (e.code().value() == ECONNABORTED) {
+            LOG(WARN) << e.what();
+        } else {
+            throw e;
+        }
+    }
 }
 
 void HttpServer::Listen() {
@@ -154,10 +183,8 @@ void HttpServer::Listen() {
     while (*run_) {
         int ret = poll(fds, 2, -1);
         assert(ret != 0);  // impossible: no timeout
-        if (ret < 0) throw std::system_error(errno, std::system_category());
-        if (fds[0].revents & POLLIN) {
-            Handle(sock_.Accept());
-        }
+        if (ret < 0) throw SystemError(errno);
+        if (fds[0].revents & POLLIN) Accept();
     }
 
     *running_ = false;
@@ -165,25 +192,40 @@ void HttpServer::Listen() {
     LOG(INFO) << "http server stopped";
 }
 
+namespace {
+
+void SetTimeout(int fd, int millis, int mask) {
+    struct timeval timeout;
+    timeout.tv_sec = millis / 1000;
+    timeout.tv_usec = (millis % 1000) * 1000;
+    if (setsockopt(fd, SOL_SOCKET, mask, &timeout, sizeof(timeout)) < 0) {
+        throw SystemError(errno);
+    }
+}
+
+void MustSend(ResponseWriter& resp, StatusCode status) noexcept {
+    if (resp.status().has_value()) {
+        LOG(ERROR) << "can't send " << status << ", already sent "
+                   << *resp.status();
+        return;
+    }
+    try {
+        resp.WriteStatus(status);
+        resp.Flush();
+    } catch (std::exception& e) {
+        LOG(WARN) << "failed to send " << status << ": " << e.what();
+        return;
+    }
+}
+
+}  // namespace
+
 void HttpServer::Handle(ClientSocket&& sock) {
     // TODO: concurrency
-
     LOG(DEBUG) << "handling client " << sock.addr() << ":" << sock.port();
 
-    // set read and write timeouts on the socket
-    struct timeval timeout;
-    timeout.tv_sec = config_.read_timeout_millis / 1000;
-    timeout.tv_usec = (config_.read_timeout_millis % 1000) * 1000;
-    if (setsockopt(sock.fd(), SOL_SOCKET, SO_RCVTIMEO, &timeout,
-                   sizeof(timeout)) < 0) {
-        throw std::system_error(errno, std::system_category());
-    }
-    timeout.tv_sec = config_.write_timeout_millis / 1000;
-    timeout.tv_usec = (config_.write_timeout_millis % 1000) * 1000;
-    if (setsockopt(sock.fd(), SOL_SOCKET, SO_SNDTIMEO, &timeout,
-                   sizeof(timeout)) < 0) {
-        throw std::system_error(errno, std::system_category());
-    }
+    SetTimeout(sock.fd(), config_.read_timeout_millis, SO_RCVTIMEO);
+    SetTimeout(sock.fd(), config_.write_timeout_millis, SO_SNDTIMEO);
 
     Stream stream(sock.fd());
     ResponseWriter resp(stream.get());
@@ -191,23 +233,20 @@ void HttpServer::Handle(ClientSocket&& sock) {
     try {
         ParseRequest(&req, stream.get());
         handler_(req, resp);
-        if (!resp.status().has_value()) {
-            throw InternalError("no response sent");
-        }
+        resp.Flush();
+        std::string user_agent = req.headers["User-Agent"];
+        LOG(INFO) << sock.addr() << " - " << to_string(req.method) << " "
+                  << req.path << " HTTP/1.1 " << int(*resp.status()) << " "
+                  << resp.bytes_written() << " " << user_agent;
     } catch (const HttpException& e) {
-        LOG(WARN) << e.what();
-        LOG(INFO) << sock.addr() << " - " << to_string(e.status()) << " "
-                  << int(e.status()) << " 0";
-        resp.WriteStatus(e.status());
-        resp.WriteData(e.what());
-        resp.WriteData("\r\n");
-        return;
+        LOG(ERROR) << e.what();
+        MustSend(resp, e.status());
+    } catch (const std::exception& e) {
+        LOG(ERROR) << e.what();
+        MustSend(resp, StatusCode::InternalServerError);
     }
 
-    std::string user_agent = req.headers["User-Agent"];
-    LOG(INFO) << sock.addr() << " - " << to_string(req.method) << " "
-              << req.path << " HTTP/1.1 " << int(*resp.status()) << " "
-              << resp.bytes_written() << " " << user_agent;
+    LOG(DEBUG) << "done handling client " << sock.addr() << ":" << sock.port();
 }
 
 }  // namespace http

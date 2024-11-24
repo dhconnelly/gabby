@@ -20,6 +20,8 @@ enum class StatusCode : int {
     InternalServerError = 500,
 };
 
+std::ostream& operator<<(std::ostream& os, StatusCode status);
+
 class HttpException : public std::exception {
 public:
     explicit HttpException(std::string what) : what_(what) {}
@@ -73,6 +75,8 @@ class ResponseWriter {
 public:
     explicit ResponseWriter(FILE* stream) : stream_(stream) {}
     virtual ~ResponseWriter() { fflush(stream_); }
+
+    virtual void Flush();
 
     // writes an http header with the specified status code. it is an
     // error to call this twice or after any other data has been sent.

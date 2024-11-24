@@ -14,14 +14,6 @@ namespace gabby {
     std::exit(1);
 }
 
-std::ostream& operator<<(std::ostream& os, const http::ServerConfig& config) {
-    return os << "{ port: " << config.port                                  //
-              << ", read_timeout_millis: " << config.read_timeout_millis    //
-              << ", write_timeout_millis: " << config.write_timeout_millis  //
-              << ", idle_timeout_millis: " << config.idle_timeout_millis    //
-              << " }";
-}
-
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     return os << "{ server_config: " << config.server_config  //
               << ", models_dir: " << config.models_dir        //
@@ -37,7 +29,6 @@ Config kDefaultConfig{
             .port = 8080,
             .read_timeout_millis = 5'000,
             .write_timeout_millis = 10'000,
-            .idle_timeout_millis = 120'000,
         },
 };
 
@@ -55,8 +46,6 @@ Config ParseArgs(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         if (ParseIntFlag(argc, argv, "--port", &i,
                          &config.server_config.port)) {
-        } else if (ParseIntFlag(argc, argv, "--idle_timeout_millis", &i,
-                                &config.server_config.idle_timeout_millis)) {
         } else if (ParseIntFlag(argc, argv, "--read_timeout_millis", &i,
                                 &config.server_config.read_timeout_millis)) {
         } else if (ParseIntFlag(argc, argv, "--write_timeout_millis", &i,

@@ -27,6 +27,10 @@ std::string to_string(Method method) {
     }
 }
 
+std::ostream& operator<<(std::ostream& os, StatusCode status) {
+    return os << to_string(status);
+}
+
 std::ostream& operator<<(std::ostream& os, Method method) {
     return os << to_string(method);
 }
@@ -49,11 +53,17 @@ void ResponseWriter::Write(std::string_view s) {
     LOG(DEBUG) << "sending " << s.size() << " bytes";
     if (s.size() == 0) return;
     if (fwrite(s.data(), 1, s.size(), stream_) == 0) {
-        LOG(ERROR) << std::format("failed to write to socket: {}",
-                                  strerror(errno));
+        if (ferror(stream_) && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            throw TimeoutException{};
+        }
         throw InternalError("failed to write data");
     }
     bytes_written_ += s.size();
+}
+
+void ResponseWriter::Flush() {
+    LOG(DEBUG) << "flushing to client";
+    fflush(stream_);
 }
 
 void ResponseWriter::WriteStatus(StatusCode status) {
@@ -62,9 +72,9 @@ void ResponseWriter::WriteStatus(StatusCode status) {
                                   int(status));
         throw InternalError("failed to send http status");
     }
-    status_ = status;
     Write(std::format("HTTP/1.1 {} {}\r\n", int(status), to_string(status)));
     WriteHeader("Connection", "close");
+    status_ = status;
 }
 
 void ResponseWriter::WriteHeader(std::string key, std::string value) {
@@ -73,8 +83,8 @@ void ResponseWriter::WriteHeader(std::string key, std::string value) {
                                   key);
         throw InternalError("failed to send http status");
     }
-    headers_[key] = value;
     Write(std::format("{}: {}\r\n", key, value));
+    headers_[key] = value;
 }
 
 void ResponseWriter::WriteData(std::string_view data) {
@@ -85,10 +95,7 @@ void ResponseWriter::WriteData(std::string_view data) {
         Write("\r\n");
         sending_data_ = true;
     }
-    if (fwrite(data.data(), 1, data.size(), stream_) < data.size()) {
-        LOG(ERROR) << std::format("failed to write data: {}", strerror(errno));
-        throw InternalError("failed to send data");
-    }
+    Write(data);
 }
 
 }  // namespace http

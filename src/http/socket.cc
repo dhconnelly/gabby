@@ -17,7 +17,11 @@ ClientSocket::ClientSocket(int fd, struct sockaddr_in addr) : fd_(fd) {
 }
 
 ClientSocket::~ClientSocket() {
-    if (fd_ >= 0) close(fd_);
+    if (fd_ >= 0) {
+        LOG(DEBUG) << "closing client socket";
+        close(fd_);
+        LOG(DEBUG) << "closed client socket";
+    }
 }
 
 ClientSocket::ClientSocket(ClientSocket&& other) {
@@ -33,13 +37,17 @@ ClientSocket& ClientSocket::operator=(ClientSocket&& other) {
 
 ServerSocket::ServerSocket(int port) : port_(port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) throw std::system_error(errno, std::system_category());
+    if (fd < 0) SystemError(errno);
     fd_ = fd;
     LOG(DEBUG) << "socket attached to fd " << fd_;
 }
 
 ServerSocket::~ServerSocket() {
-    if (fd_ >= 0) close(fd_);
+    if (fd_ >= 0) {
+        LOG(DEBUG) << "closing server socket";
+        close(fd_);
+        LOG(DEBUG) << "closed server socket";
+    }
 }
 
 ServerSocket::ServerSocket(ServerSocket&& other) {
@@ -76,6 +84,9 @@ ClientSocket ServerSocket::Accept() {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
     int client_fd = ::accept(fd_, (struct sockaddr*)&client_addr, &addr_len);
+    if (client_fd < 0) {
+        throw std::system_error(errno, std::system_category());
+    }
     return ClientSocket(client_fd, client_addr);
 }
 
@@ -91,6 +102,7 @@ Pipe::~Pipe() {
         LOG(DEBUG) << "closing pipe " << fds_[0] << "," << fds_[1];
         close(fds_[0]);
         close(fds_[1]);
+        LOG(DEBUG) << "closed pipe " << fds_[0] << "," << fds_[1];
     }
 }
 

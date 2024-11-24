@@ -1,6 +1,7 @@
 #ifndef GABBY_HTTP_SERVER_H_
 #define GABBY_HTTP_SERVER_H_
 
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <thread>
@@ -15,8 +16,9 @@ struct ServerConfig {
     int port;
     int read_timeout_millis;
     int write_timeout_millis;
-    int idle_timeout_millis;
 };
+
+std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
 
 class HttpServer {
 public:
@@ -28,6 +30,7 @@ public:
 
 private:
     void Listen();
+    void Accept();
     void Handle(ClientSocket&& sock);
 
     ServerConfig config_;
