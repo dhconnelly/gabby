@@ -1,6 +1,8 @@
 #ifndef GABBY_UTILS_LOGGING_H_
 #define GABBY_UTILS_LOGGING_H_
 
+#include <cstring>
+#include <format>
 #include <ostream>
 #include <source_location>
 #include <sstream>
