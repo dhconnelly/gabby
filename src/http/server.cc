@@ -107,10 +107,19 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
               << " }";
 }
 
+std::array<OwnedFd, 2> MakePipe() {
+    int fds[2];
+    if (::pipe(fds) < 0) {
+        throw std::system_error(errno, std::system_category());
+    }
+    return {to_owned(fds[0]), to_owned(fds[1])};
+}
+
 HttpServer::HttpServer(const ServerConfig& config, Handler handler)
     : config_(config),
       sock_(config.port),
       handler_(handler),
+      pipe_(MakePipe()),
       running_(new std::atomic(false)),
       run_(new std::atomic(false)) {}
 
@@ -132,7 +141,7 @@ void HttpServer::Stop() {
     LOG(DEBUG) << "stopping server...";
     *run_ = false;
     char done = 1;
-    write(pipe_.writefd(), &done, 1);
+    write(*pipe_[1], &done, 1);
     running_->wait(true);
     LOG(DEBUG) << "stopped server";
 }
@@ -160,7 +169,7 @@ void HttpServer::Listen() {
     struct pollfd fds[2];
     fds[0].fd = sock_.fd();
     fds[0].events = POLLIN;
-    fds[1].fd = pipe_.readfd();
+    fds[1].fd = *pipe_[0];
     fds[1].events = POLLIN;
     while (*run_) {
         int ret = poll(fds, 2, -1);

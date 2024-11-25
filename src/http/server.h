@@ -36,7 +36,7 @@ private:
     ServerConfig config_;
     ServerSocket sock_;
     Handler handler_;
-    Pipe pipe_;
+    std::array<OwnedFd, 2> pipe_;  // [read, write]
     std::unique_ptr<std::atomic<bool>> run_;
     std::unique_ptr<std::atomic<bool>> running_;
     std::unique_ptr<std::thread> listener_thread_;

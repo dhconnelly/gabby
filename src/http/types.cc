@@ -42,7 +42,7 @@ std::ostream& operator<<(std::ostream& os, const Request& req) {
     os << std::format(", path: {}", req.path);
     os << ", headers: { ";
     for (const auto& [k, v] : req.headers) {
-        os << std::format("{}: {}", k, v);
+        os << std::format("{}: {}, ", k, v);
     }
     os << " }";
     os << " }";

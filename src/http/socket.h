@@ -3,62 +3,48 @@
 
 #include <netinet/in.h>
 
+#include <memory>
 #include <string>
 
 namespace gabby {
 namespace http {
 
+using OwnedFd = std::unique_ptr<int, void (*)(int*)>;
+
+OwnedFd to_owned(int fd);
+
+// resource handle that wraps a socket for a client connection
 class ClientSocket {
 public:
-    ClientSocket(int fd, struct sockaddr_in addr);
-    ~ClientSocket();
-    ClientSocket(ClientSocket&&);
-    ClientSocket& operator=(ClientSocket&&);
-    ClientSocket(ClientSocket&) = delete;
-    ClientSocket& operator=(ClientSocket&) = delete;
-
     int port() const { return port_; }
     std::string addr() const { return addr_; }
-    int fd() { return fd_; }
+    int fd() { return *fd_; }
 
 private:
-    int fd_;
+    ClientSocket(OwnedFd fd, struct sockaddr_in addr);
+    friend class ServerSocket;
+
+    OwnedFd fd_;
     int port_;
     std::string addr_;
 };
 
+// resource handle that binds and listens to a specified port
 class ServerSocket {
 public:
     explicit ServerSocket(int port);
-    ~ServerSocket();
-    ServerSocket(ServerSocket&&);
-    ServerSocket& operator=(ServerSocket&&);
-    ServerSocket(ServerSocket&) = delete;
-    ServerSocket& operator=(ServerSocket&) = delete;
-
-    int fd() const { return fd_; }
+    int fd() const { return *fd_; }
     int port() const { return port_; }
+
+    // starts listening at the specified port
     void Listen();
+
+    // accepts a client connection
     ClientSocket Accept();
 
 private:
     int port_;
-    int fd_;
-};
-
-class Pipe {
-public:
-    Pipe();
-    ~Pipe();
-    Pipe(Pipe&&);
-    Pipe& operator=(Pipe&&);
-    Pipe(Pipe&) = delete;
-    Pipe& operator=(Pipe&) = delete;
-    int readfd() { return fds_[0]; }
-    int writefd() { return fds_[1]; }
-
-private:
-    int fds_[2];
+    OwnedFd fd_;
 };
 
 }  // namespace http
