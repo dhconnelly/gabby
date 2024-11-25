@@ -233,9 +233,10 @@ void SocketWriter::WriteData(std::string_view data) {
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
-    return os << "{ port: " << config.port
-              << ", read_timeout_millis: " << config.read_timeout_millis
-              << ", write_timeout_millis: " << config.write_timeout_millis
+    return os << "{ port: " << config.port                                  //
+              << ", read_timeout_millis: " << config.read_timeout_millis    //
+              << ", write_timeout_millis: " << config.write_timeout_millis  //
+              << ", worker_threads: " << config.worker_threads              //
               << " }";
 }
 
@@ -245,35 +246,50 @@ HttpServer::HttpServer(const ServerConfig& config, Handler handler)
       sock_(MakeSocket()),
       handler_(handler),
       pipe_(MakePipe()),
-      running_(new std::atomic(false)),
-      run_(new std::atomic(false)) {}
-
-void HttpServer::Start() {
-    LOG(DEBUG) << "starting server...";
-    *run_ = true;
-    listener_thread_ = std::make_unique<std::thread>(&HttpServer::Listen, this);
-    LOG(DEBUG) << "waiting for server to be ready...";
-    running_->wait(false);
-    LOG(DEBUG) << "server ready.";
+      running_(0),
+      run_(false) {
+    if (config_.worker_threads < 1) {
+        throw std::invalid_argument("worker_threads must be at least 1");
+    }
 }
 
-void HttpServer::Wait() {
-    LOG(DEBUG) << "waiting on server thread to exit...";
-    listener_thread_->join();
-    LOG(DEBUG) << "server thread exited.";
+void HttpServer::Start() {
+    // TODO: add state variable and enforce state transitions
+
+    LOG(DEBUG) << "starting server...";
+    run_ = true;
+
+    LOG(DEBUG) << "starting listener thread";
+    threads_.reserve(total_threads());
+    threads_.emplace_back(&HttpServer::Listen, this);
+    LOG(DEBUG) << "starting " << config_.worker_threads << " worker threads";
+    for (int i = 0; i < config_.worker_threads; i++) {
+        threads_.emplace_back(&HttpServer::WorkerAccept, this, i);
+    }
+
+    LOG(DEBUG) << "waiting for server to be ready...";
+    running_.wait(0);
+    LOG(DEBUG) << "server ready.";
 }
 
 void HttpServer::Stop() {
     LOG(DEBUG) << "stopping server...";
-    *run_ = false;
+    run_ = false;
+    run_.notify_all();
     char done = 1;
     write(*pipe_[1], &done, 1);
-    running_->wait(true);
-    LOG(DEBUG) << "stopped server";
+}
+
+void HttpServer::Wait() {
+    LOG(DEBUG) << "waiting on all threads to exit...";
+    for (int i = 0; i < total_threads(); i++) {
+        threads_[i].join();
+    }
+    LOG(DEBUG) << "all threads exited.";
 }
 
 void HttpServer::Listen() {
-    LOG(DEBUG) << "server starting listening";
+    LOG(DEBUG) << "listener thread started";
 
     // bind the socket
     struct sockaddr_in addr;
@@ -292,8 +308,8 @@ void HttpServer::Listen() {
     LOG(INFO) << "http server listening at port " << port_;
 
     // ready to accept connections
-    *running_ = true;
-    running_->notify_one();
+    running_ = true;
+    running_.notify_one();
 
     // accept and handle until shut down
     LOG(DEBUG) << "http server loop started";
@@ -302,17 +318,19 @@ void HttpServer::Listen() {
     fds[0].events = POLLIN;
     fds[1].fd = *pipe_[0];
     fds[1].events = POLLIN;
-    while (*run_) {
+    while (run_) {
         int ret = poll(fds, 2, -1);
         assert(ret != 0);  // impossible: no timeout
         if (ret < 0) throw SystemError(errno);
         if (fds[0].revents & POLLIN) Accept();
     }
-    LOG(DEBUG) << "http server loop finished";
+    LOG(DEBUG) << "http server loop finished, listener thread exiting";
+}
 
-    // can no longer accept connections
-    *running_ = false;
-    running_->notify_one();
+void HttpServer::WorkerAccept(int id) {
+    LOG(DEBUG) << "worker " << id << " started";
+    run_.wait(true);
+    LOG(DEBUG) << "worker " << id << " exiting";
 }
 
 void HttpServer::Accept() {

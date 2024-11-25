@@ -12,9 +12,11 @@ namespace gabby {
 namespace http {
 
 struct ServerConfig {
-    int port;
-    int read_timeout_millis;
-    int write_timeout_millis;
+    int port = 0;
+    int read_timeout_millis = 5000;
+    int write_timeout_millis = 5000;
+    // must be at least 1
+    unsigned int worker_threads = 1;
 };
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
@@ -25,6 +27,7 @@ class HttpServer {
 public:
     HttpServer(const ServerConfig& config, Handler handler);
     int port() { return port_; }
+    int total_threads() { return config_.worker_threads + 1; }
 
     void Start();
     void Wait();
@@ -38,6 +41,7 @@ private:
     };
 
     void Listen();
+    void WorkerAccept(int id);
     void Accept();
     void Handle(Client&& sock);
 
@@ -45,11 +49,12 @@ private:
     int port_;
     OwnedFd sock_;
     Handler handler_;
-    // used by poll() for graceful shutdown. [read, write]
-    std::array<OwnedFd, 2> pipe_;
-    std::unique_ptr<std::atomic<bool>> run_;
-    std::unique_ptr<std::atomic<bool>> running_;
-    std::unique_ptr<std::thread> listener_thread_;
+
+    // used by the poll() loop for graceful shutdown.
+    std::array<OwnedFd, 2> pipe_;  // [read, write]
+    std::atomic<bool> run_;        // set to false to shut down
+    std::atomic<bool> running_;    // set to indicate we can accept clients
+    std::vector<std::thread> threads_;
 };
 
 }  // namespace http

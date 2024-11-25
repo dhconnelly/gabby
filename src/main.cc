@@ -3,6 +3,7 @@
 #include <format>
 #include <iostream>
 #include <string_view>
+#include <thread>
 
 #include "service.h"
 #include "utils/logging.h"
@@ -29,6 +30,7 @@ Config kDefaultConfig{
             .port = 8080,
             .read_timeout_millis = 5'000,
             .write_timeout_millis = 10'000,
+            .worker_threads = std::thread::hardware_concurrency() - 1,
         },
 };
 
@@ -80,13 +82,14 @@ void shutdown(int signal) {
 
 void Run(int argc, char* argv[]) {
     auto config = ParseArgs(argc, argv);
-    LOG(INFO) << "server config: " << config;
     SetGlobalLogLevel(config.log_level);
+    LOG(INFO) << "server config: " << config;
     service = new InferenceService(config);
     std::signal(SIGINT, shutdown);
     std::signal(SIGTERM, shutdown);
     service->Start();
     service->Wait();
+    LOG(INFO) << "exiting";
 }
 
 }  // namespace gabby

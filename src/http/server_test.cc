@@ -29,6 +29,7 @@ constexpr ServerConfig kTestConfig{
     .port = 0,
     .read_timeout_millis = 5000,
     .write_timeout_millis = 5000,
+    .worker_threads = 2,
 };
 
 // note: doesn't perform any buffering

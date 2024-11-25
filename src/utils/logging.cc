@@ -33,8 +33,10 @@ Logger::Logger(const char *filename, int line, LogLevel level) : level_(level) {
 }
 
 Logger::~Logger() {
-    stream_ << std::endl;
-    std::cerr << stream_.str();
+    if (level_ <= GlobalLogLevel) {
+        stream_ << std::endl;
+        std::cerr << stream_.str();
+    }
 }
 
 }  // namespace gabby
