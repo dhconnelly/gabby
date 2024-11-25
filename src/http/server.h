@@ -6,7 +6,6 @@
 #include <optional>
 #include <thread>
 
-#include "http/socket.h"
 #include "http/types.h"
 
 namespace gabby {
@@ -20,23 +19,34 @@ struct ServerConfig {
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
 
+using OwnedFd = std::unique_ptr<int, void (*)(int*)>;
+
 class HttpServer {
 public:
     HttpServer(const ServerConfig& config, Handler handler);
+    int port() { return port_; }
+
     void Start();
     void Wait();
     void Stop();
-    int port() { return sock_.port(); }
 
 private:
+    struct Client {
+        OwnedFd fd;
+        int port;
+        std::string addr;
+    };
+
     void Listen();
     void Accept();
-    void Handle(ClientSocket&& sock);
+    void Handle(Client&& sock);
 
     ServerConfig config_;
-    ServerSocket sock_;
+    int port_;
+    OwnedFd sock_;
     Handler handler_;
-    std::array<OwnedFd, 2> pipe_;  // [read, write]
+    // used by poll() for graceful shutdown. [read, write]
+    std::array<OwnedFd, 2> pipe_;
     std::unique_ptr<std::atomic<bool>> run_;
     std::unique_ptr<std::atomic<bool>> running_;
     std::unique_ptr<std::thread> listener_thread_;

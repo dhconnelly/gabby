@@ -145,7 +145,7 @@ TEST(HttpServer, CallWithWriteDelay) {
     // Sleep before sending the full request line.
     OutgoingSocket sock(server.port());
     sock.Write("GET ");
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     auto result = sock.ReadAll();
 
     // Assert
@@ -175,7 +175,7 @@ TEST(HttpServer, CallWithReadDelay) {
     // Sleep so we can't ACK the full response.
     OutgoingSocket sock(server.port());
     sock.Write("GET / HTTP/1.1\r\n\r\n");
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     auto result = sock.ReadAll();
 
     // Assert

@@ -73,6 +73,7 @@ std::ostream& operator<<(std::ostream& os, const Request& req);
 
 class ResponseWriter {
 public:
+    // |stream| must outlive the constructed instance
     explicit ResponseWriter(FILE* stream) : stream_(stream) {}
     virtual ~ResponseWriter() { fflush(stream_); }
 
