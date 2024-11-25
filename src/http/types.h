@@ -73,37 +73,25 @@ std::ostream& operator<<(std::ostream& os, const Request& req);
 
 class ResponseWriter {
 public:
-    // |stream| must outlive the constructed instance
-    explicit ResponseWriter(FILE* stream) : stream_(stream) {}
-    virtual ~ResponseWriter() { fflush(stream_); }
+    virtual ~ResponseWriter() {}
 
-    virtual void Flush();
+    virtual void Flush() = 0;
 
     // writes an http header with the specified status code. it is an
     // error to call this twice or after any other data has been sent.
     // TODO: return a different object here to enfroce this.
-    virtual void WriteStatus(StatusCode code);
+    virtual void WriteStatus(StatusCode code) = 0;
 
     // writes the specified http header. it is an error to call this
     // after any other data has been sent.
     // TODO: return a different object here to enfroce this.
-    virtual void WriteHeader(std::string key, std::string value);
+    virtual void WriteHeader(std::string key, std::string value) = 0;
 
     // writes the specified data into the response. if a status has not
     // already been sent, this will write StatusCode::OK first.
-    virtual void WriteData(std::string_view data);
+    virtual void WriteData(std::string_view data) = 0;
 
-    std::optional<StatusCode> status() { return status_; }
-    int bytes_written() { return bytes_written_; }
-
-private:
-    void Write(std::string_view s);
-
-    FILE* stream_;
-    std::optional<StatusCode> status_;
-    std::unordered_map<std::string, std::string> headers_;
-    bool sending_data_ = false;
-    int bytes_written_ = 0;
+    virtual std::optional<StatusCode> status() = 0;
 };
 
 using Handler = std::function<void(Request& request, ResponseWriter& response)>;

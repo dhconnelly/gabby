@@ -49,54 +49,5 @@ std::ostream& operator<<(std::ostream& os, const Request& req) {
     return os;
 }
 
-void ResponseWriter::Write(std::string_view s) {
-    LOG(DEBUG) << "sending " << s.size() << " bytes in response";
-    if (s.size() == 0) return;
-    if (fwrite(s.data(), 1, s.size(), stream_) == 0) {
-        if (ferror(stream_) && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            throw TimeoutException{};
-        }
-        throw InternalError("failed to write data");
-    }
-    bytes_written_ += s.size();
-}
-
-void ResponseWriter::Flush() {
-    LOG(DEBUG) << "flushing response to client";
-    fflush(stream_);
-}
-
-void ResponseWriter::WriteStatus(StatusCode status) {
-    if (sending_data_) {
-        LOG(ERROR) << std::format("can't send status {}, already sending data",
-                                  int(status));
-        throw InternalError("failed to send http status");
-    }
-    Write(std::format("HTTP/1.1 {} {}\r\n", int(status), to_string(status)));
-    WriteHeader("Connection", "close");
-    status_ = status;
-}
-
-void ResponseWriter::WriteHeader(std::string key, std::string value) {
-    if (sending_data_) {
-        LOG(ERROR) << std::format("can't send header {}, already sending data",
-                                  key);
-        throw InternalError("failed to send http status");
-    }
-    Write(std::format("{}: {}\r\n", key, value));
-    headers_[key] = value;
-}
-
-void ResponseWriter::WriteData(std::string_view data) {
-    if (!sending_data_) {
-        if (!status_.has_value()) {
-            WriteStatus(StatusCode::OK);
-        }
-        Write("\r\n");
-        sending_data_ = true;
-    }
-    Write(data);
-}
-
 }  // namespace http
 }  // namespace gabby

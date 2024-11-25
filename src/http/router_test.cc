@@ -20,13 +20,13 @@ Handler NotFoundHandler = SimpleHandler(StatusCode::NotFound);
 Handler ErrorHandler = SimpleHandler(StatusCode::InternalServerError);
 
 struct SimpleResponseWriter : public http::ResponseWriter {
-    SimpleResponseWriter() : http::ResponseWriter(0) {}
-
     void WriteStatus(http::StatusCode code) override { this->code = code; }
     void WriteHeader(std::string key, std::string value) override {
         headers_[key] = value;
     }
     void WriteData(std::string_view data) override { this->data = data; }
+    void Flush() override {}
+    std::optional<http::StatusCode> status() override { return code; }
 
     http::StatusCode code;
     std::unordered_map<std::string, std::string> headers_;

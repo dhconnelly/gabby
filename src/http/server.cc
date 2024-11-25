@@ -146,6 +146,90 @@ std::array<OwnedFd, 2> MakePipe() {
     return {to_owned(fds[0]), to_owned(fds[1])};
 }
 
+class SocketWriter : public ResponseWriter {
+public:
+    // |stream| must outlive the constructed instance
+    explicit SocketWriter(FILE* stream) : stream_(stream) {}
+    ~SocketWriter() override { fflush(stream_); }
+
+    void Flush() override;
+
+    // writes an http header with the specified status code. it is an
+    // error to call this twice or after any other data has been sent.
+    // TODO: return a different object here to enfroce this.
+    void WriteStatus(StatusCode code) override;
+
+    // writes the specified http header. it is an error to call this
+    // after any other data has been sent.
+    // TODO: return a different object here to enfroce this.
+    void WriteHeader(std::string key, std::string value) override;
+
+    // writes the specified data into the response. if a status has not
+    // already been sent, this will write StatusCode::OK first.
+    void WriteData(std::string_view data) override;
+
+    std::optional<StatusCode> status() override { return status_; }
+
+    int bytes_written() { return bytes_written_; }
+
+private:
+    void Write(std::string_view s);
+
+    FILE* stream_;
+    std::optional<StatusCode> status_;
+    std::unordered_map<std::string, std::string> headers_;
+    bool sending_data_ = false;
+    int bytes_written_ = 0;
+};
+
+void SocketWriter::Write(std::string_view s) {
+    LOG(DEBUG) << "sending " << s.size() << " bytes in response";
+    if (s.size() == 0) return;
+    if (fwrite(s.data(), 1, s.size(), stream_) == 0) {
+        if (ferror(stream_) && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            throw TimeoutException{};
+        }
+        throw InternalError("failed to write data");
+    }
+    bytes_written_ += s.size();
+}
+
+void SocketWriter::Flush() {
+    LOG(DEBUG) << "flushing response to client";
+    fflush(stream_);
+}
+
+void SocketWriter::WriteStatus(StatusCode status) {
+    if (sending_data_) {
+        LOG(ERROR) << std::format("can't send status {}, already sending data",
+                                  int(status));
+        throw InternalError("failed to send http status");
+    }
+    Write(std::format("HTTP/1.1 {} {}\r\n", int(status), to_string(status)));
+    WriteHeader("Connection", "close");
+    status_ = status;
+}
+
+void SocketWriter::WriteHeader(std::string key, std::string value) {
+    if (sending_data_) {
+        LOG(ERROR) << std::format("can't send header {}, already sending data",
+                                  key);
+        throw InternalError("failed to send http status");
+    }
+    Write(std::format("{}: {}\r\n", key, value));
+    headers_[key] = value;
+}
+
+void SocketWriter::WriteData(std::string_view data) {
+    if (!sending_data_) {
+        if (!status_.has_value()) {
+            WriteStatus(StatusCode::OK);
+        }
+        Write("\r\n");
+        sending_data_ = true;
+    }
+    Write(data);
+}
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
@@ -268,7 +352,7 @@ void HttpServer::Handle(Client&& client) {
         throw SystemError(errno);
     }
 
-    ResponseWriter resp(stream);
+    SocketWriter resp(stream);
     Request req{.addr = client.addr};
     try {
         ParseRequest(&req, stream);
