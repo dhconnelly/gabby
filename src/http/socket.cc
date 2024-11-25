@@ -17,11 +17,7 @@ ClientSocket::ClientSocket(int fd, struct sockaddr_in addr) : fd_(fd) {
 }
 
 ClientSocket::~ClientSocket() {
-    if (fd_ >= 0) {
-        LOG(DEBUG) << "closing client socket";
-        close(fd_);
-        LOG(DEBUG) << "closed client socket";
-    }
+    if (fd_ >= 0) close(fd_);
 }
 
 ClientSocket::ClientSocket(ClientSocket&& other) {
@@ -39,15 +35,10 @@ ServerSocket::ServerSocket(int port) : port_(port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) SystemError(errno);
     fd_ = fd;
-    LOG(DEBUG) << "socket attached to fd " << fd_;
 }
 
 ServerSocket::~ServerSocket() {
-    if (fd_ >= 0) {
-        LOG(DEBUG) << "closing server socket";
-        close(fd_);
-        LOG(DEBUG) << "closed server socket";
-    }
+    if (fd_ >= 0) close(fd_);
 }
 
 ServerSocket::ServerSocket(ServerSocket&& other) {
@@ -62,8 +53,6 @@ ServerSocket& ServerSocket::operator=(ServerSocket&& other) {
 }
 
 void ServerSocket::Listen() {
-    LOG(DEBUG) << "listening on socket with fd " << fd_;
-    LOG(DEBUG) << "starting listening on port " << port_;
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -77,7 +66,6 @@ void ServerSocket::Listen() {
     socklen_t len = sizeof(addr);
     getsockname(fd_, (struct sockaddr*)&addr, &len);
     port_ = ntohs(addr.sin_port);
-    LOG(DEBUG) << "listening on port " << port_;
 }
 
 ClientSocket ServerSocket::Accept() {
@@ -94,15 +82,12 @@ Pipe::Pipe() {
     if (::pipe(fds_) < 0) {
         throw std::system_error(errno, std::system_category());
     }
-    LOG(DEBUG) << "opened pipe " << fds_[0] << "," << fds_[1];
 }
 
 Pipe::~Pipe() {
     if (fds_[0] >= 0) {
-        LOG(DEBUG) << "closing pipe " << fds_[0] << "," << fds_[1];
         close(fds_[0]);
         close(fds_[1]);
-        LOG(DEBUG) << "closed pipe " << fds_[0] << "," << fds_[1];
     }
 }
 

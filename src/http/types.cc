@@ -50,7 +50,7 @@ std::ostream& operator<<(std::ostream& os, const Request& req) {
 }
 
 void ResponseWriter::Write(std::string_view s) {
-    LOG(DEBUG) << "sending " << s.size() << " bytes";
+    LOG(DEBUG) << "sending " << s.size() << " bytes in response";
     if (s.size() == 0) return;
     if (fwrite(s.data(), 1, s.size(), stream_) == 0) {
         if (ferror(stream_) && (errno == EAGAIN || errno == EWOULDBLOCK)) {
@@ -62,7 +62,7 @@ void ResponseWriter::Write(std::string_view s) {
 }
 
 void ResponseWriter::Flush() {
-    LOG(DEBUG) << "flushing to client";
+    LOG(DEBUG) << "flushing response to client";
     fflush(stream_);
 }
 

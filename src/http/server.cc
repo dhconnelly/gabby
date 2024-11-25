@@ -19,25 +19,6 @@ namespace http {
 
 namespace {
 
-class Stream {
-public:
-    explicit Stream(int fd) {
-        if ((f_ = fdopen(fd, "r+")) == nullptr) {
-            throw SystemError(errno);
-        }
-    }
-
-    FILE* get() { return f_; }
-
-    ~Stream() {
-        fflush(f_);
-        fclose(f_);
-    }
-
-private:
-    FILE* f_;
-};
-
 constexpr int kMaxLineLen = 256;
 
 std::string_view ReadLine(char buf[], FILE* stream) {
@@ -69,13 +50,16 @@ Method ParseMethod(const std::string_view request_line) {
     }
     std::string_view method_str(request_line.begin(),
                                 request_line.begin() + to);
+    Method method;
     if (method_str == "GET") {
-        return Method::GET;
+        method = Method::GET;
     } else if (method_str == "POST") {
-        return Method::POST;
+        method = Method::POST;
     } else {
         throw BadRequestException("invalid http method");
     }
+    LOG(DEBUG) << "parsed method: " << method;
+    return method;
 }
 
 std::string ParsePath(const std::string_view request_line) {
@@ -84,8 +68,10 @@ std::string ParsePath(const std::string_view request_line) {
     if (from == std::string_view::npos || to == std::string_view::npos) {
         throw BadRequestException("missing http path");
     }
-    return std::string(request_line.begin() + from + 1,
-                       request_line.begin() + to);
+    std::string path(request_line.begin() + from + 1,
+                     request_line.begin() + to);
+    LOG(DEBUG) << "parsed path: " << path;
+    return path;
 }
 
 std::pair<std::string, std::string> ParseHeader(const std::string_view line) {
@@ -93,26 +79,21 @@ std::pair<std::string, std::string> ParseHeader(const std::string_view line) {
     if (delim == std::string_view::npos) {
         throw BadRequestException("missing colon in http header");
     }
-    std::string key(line.begin(), line.begin() + delim);
-    std::string value(line.begin() + delim + 2, line.end());
-    return {key, value};
+    std::string k(line.begin(), line.begin() + delim);
+    std::string v(line.begin() + delim + 2, line.end());
+    LOG(DEBUG) << "parsed header: " << std::format("[{}: {}]", k, v);
+    return {k, v};
 }
 
 void ParseRequest(Request* req, FILE* stream) {
     char buf[kMaxLineLen];
-
     std::string_view line = ReadLine(buf, stream);
     if (line.empty()) throw BadRequestException("missing request line");
     req->method = ParseMethod(line);
-    LOG(DEBUG) << "got method " << req->method;
     req->path = ParsePath(line);
-    LOG(DEBUG) << "got path " << req->path;
-
-    LOG(DEBUG) << "parsing headers";
     while (!(line = ReadLine(buf, stream)).empty()) {
         req->headers.insert(ParseHeader(line));
     }
-
     LOG(DEBUG) << "parsed request: " << *req;
     req->stream = stream;
 }
@@ -131,30 +112,29 @@ HttpServer::HttpServer(const ServerConfig& config, Handler handler)
       sock_(config.port),
       handler_(handler),
       running_(new std::atomic(false)),
-      run_(new std::atomic(false)) {
-    LOG(DEBUG) << config_;
-}
+      run_(new std::atomic(false)) {}
 
 void HttpServer::Start() {
     *run_ = true;
     listener_thread_ = std::make_unique<std::thread>(&HttpServer::Listen, this);
-    LOG(DEBUG) << "waiting for server to be ready";
+    LOG(DEBUG) << "waiting for server to be ready...";
     running_->wait(false);
-    LOG(DEBUG) << "server running";
+    LOG(DEBUG) << "server ready.";
 }
 
 void HttpServer::Wait() {
-    LOG(DEBUG) << "waiting on server to stop";
+    LOG(DEBUG) << "waiting on server thread to exit...";
     listener_thread_->join();
-    LOG(DEBUG) << "server stopped, done waiting";
+    LOG(DEBUG) << "server thread exited.";
 }
 
 void HttpServer::Stop() {
+    LOG(DEBUG) << "stopping server...";
     *run_ = false;
     char done = 1;
     write(pipe_.writefd(), &done, 1);
     running_->wait(true);
-    LOG(DEBUG) << "server stopped running";
+    LOG(DEBUG) << "stopped server";
 }
 
 void HttpServer::Accept() {
@@ -171,10 +151,12 @@ void HttpServer::Accept() {
 
 void HttpServer::Listen() {
     sock_.Listen();
-    *running_ = true;
-    running_->notify_one();
     LOG(INFO) << "http server listening at port " << sock_.port();
 
+    *running_ = true;
+    running_->notify_one();
+
+    LOG(DEBUG) << "http server loop started";
     struct pollfd fds[2];
     fds[0].fd = sock_.fd();
     fds[0].events = POLLIN;
@@ -186,10 +168,10 @@ void HttpServer::Listen() {
         if (ret < 0) throw SystemError(errno);
         if (fds[0].revents & POLLIN) Accept();
     }
+    LOG(DEBUG) << "http server loop finished";
 
     *running_ = false;
     running_->notify_one();
-    LOG(INFO) << "http server stopped";
 }
 
 namespace {
@@ -227,11 +209,15 @@ void HttpServer::Handle(ClientSocket&& sock) {
     SetTimeout(sock.fd(), config_.read_timeout_millis, SO_RCVTIMEO);
     SetTimeout(sock.fd(), config_.write_timeout_millis, SO_SNDTIMEO);
 
-    Stream stream(sock.fd());
-    ResponseWriter resp(stream.get());
+    FILE* stream;
+    if ((stream = fdopen(sock.fd(), "r+")) == nullptr) {
+        throw SystemError(errno);
+    }
+
+    ResponseWriter resp(stream);
     Request req{.addr = sock.addr()};
     try {
-        ParseRequest(&req, stream.get());
+        ParseRequest(&req, stream);
         handler_(req, resp);
         resp.Flush();
         std::string user_agent = req.headers["User-Agent"];
