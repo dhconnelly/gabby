@@ -25,6 +25,17 @@ std::ostream& operator<<(std::ostream& os, LogLevel level);
 extern LogLevel GlobalLogLevel;
 void SetGlobalLogLevel(LogLevel level);
 
+class ScopedLogLevel {
+public:
+    ScopedLogLevel(LogLevel level) : prev_(GlobalLogLevel) {
+        GlobalLogLevel = level;
+    }
+    ~ScopedLogLevel() { GlobalLogLevel = prev_; }
+
+private:
+    LogLevel prev_;
+};
+
 class Logger {
 public:
     Logger(const char* filename, int line, LogLevel level);

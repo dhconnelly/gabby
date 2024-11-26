@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <thread>
 
 #include "http/types.h"
@@ -50,11 +51,17 @@ private:
     OwnedFd sock_;
     Handler handler_;
 
+    std::vector<std::thread> threads_;
+    std::queue<Client> tasks_;
+
+    // used by the thread pool to monitor |run_| and |tasks_|.
+    std::mutex mux_;
+    std::condition_variable cond_;
+
     // used by the poll() loop for graceful shutdown.
     std::array<OwnedFd, 2> pipe_;  // [read, write]
     std::atomic<bool> run_;        // set to false to shut down
     std::atomic<bool> running_;    // set to indicate we can accept clients
-    std::vector<std::thread> threads_;
 };
 
 }  // namespace http

@@ -11,6 +11,7 @@
 #include <format>
 #include <memory>
 #include <stdexcept>
+#include <thread>
 
 #include "utils/logging.h"
 
@@ -29,7 +30,7 @@ constexpr ServerConfig kTestConfig{
     .port = 0,
     .read_timeout_millis = 5000,
     .write_timeout_millis = 5000,
-    .worker_threads = 2,
+    .worker_threads = 3,
 };
 
 // note: doesn't perform any buffering
@@ -79,8 +80,9 @@ private:
     int fd_;
 };
 
-std::string Call(int port, Method method, const std::string_view path,
-                 const std::unordered_map<std::string, std::string>& headers) {
+std::string Call(
+    int port, Method method, const std::string_view path,
+    const std::unordered_map<std::string, std::string>& headers = {}) {
     OutgoingSocket sock(port);
     sock.Write(std::format("{} {} HTTP/1.1\r\n", to_string(method), path));
     for (const auto& [key, value] : headers) {
@@ -219,6 +221,42 @@ TEST(HttpServer, CallSuccessfully) {
               Field(&Request::path, "/foo"),
               Field(&Request::headers,
                     UnorderedElementsAre(Pair("a", "b"), Pair("1", "2")))));
+}
+
+TEST(HttpServer, CallConcurrently) {
+    for (int num_workers = 1; num_workers <= 7; num_workers++) {
+        // Arrange
+        auto config = kTestConfig;
+        config.worker_threads = num_workers;
+        std::atomic<int> count = 0;
+        auto server = TestServer(
+            config, [&count](const Request& req, ResponseWriter& resp) {
+                count++;
+                resp.WriteStatus(StatusCode::OK);
+            });
+        int port = server.port();
+
+        // Act
+        std::atomic<bool> ready = false;
+        std::vector<std::thread> threads(4);
+        for (int i = 0; i < 4; i++) {
+            threads[i] = std::thread([&ready, port] {
+                ready.wait(false);
+                for (int j = 0; j < 10; j++) {
+                    auto result = Call(port, Method::GET, "/foo");
+                    EXPECT_THAT(result, HasSubstr("HTTP/1.1 200 OK"));
+                }
+            });
+        }
+        ready = true;
+        ready.notify_all();
+        for (int i = 0; i < 4; i++) {
+            threads[i].join();
+        }
+
+        // Assert
+        EXPECT_EQ(count, 40);
+    }
 }
 
 }  // namespace http
