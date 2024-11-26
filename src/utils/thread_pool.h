@@ -1,11 +1,13 @@
 #ifndef GABBY_UTILS_THREAD_POOL_H_
 #define GABBY_UTILS_THREAD_POOL_H_
 
-#include <atomic>
+#include <condition_variable>
 #include <deque>
 #include <functional>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
+#include <vector>
 
 namespace gabby {
 
