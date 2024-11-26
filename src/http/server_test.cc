@@ -26,6 +26,8 @@ using testing::UnorderedElementsAre;
 namespace gabby {
 namespace http {
 
+constexpr int kNumRetries = 3;
+
 constexpr ServerConfig kTestConfig{
     .port = 0,
     .read_timeout_millis = 5000,
@@ -83,13 +85,25 @@ private:
 std::string Call(
     int port, Method method, const std::string_view path,
     const std::unordered_map<std::string, std::string>& headers = {}) {
-    OutgoingSocket sock(port);
-    sock.Write(std::format("{} {} HTTP/1.1\r\n", to_string(method), path));
-    for (const auto& [key, value] : headers) {
-        sock.Write(std::format("{}: {}\r\n", key, value));
+    for (int attempt = 0; attempt < kNumRetries; attempt++) {
+        try {
+            OutgoingSocket sock(port);
+            sock.Write(
+                std::format("{} {} HTTP/1.1\r\n", to_string(method), path));
+            for (const auto& [key, value] : headers) {
+                sock.Write(std::format("{}: {}\r\n", key, value));
+            }
+            sock.Write("\r\n");
+            return sock.ReadAll();
+        } catch (SystemError& e) {
+            if (e.error() == ECONNRESET) {
+                continue;
+            } else {
+                throw e;
+            }
+        }
     }
-    sock.Write("\r\n");
-    return sock.ReadAll();
+    throw std::runtime_error("exceeded max retries");
 }
 
 class TestServer {
@@ -238,11 +252,13 @@ TEST(HttpServer, CallConcurrently) {
 
         // Act
         std::atomic<bool> ready = false;
-        std::vector<std::thread> threads(4);
-        for (int i = 0; i < 4; i++) {
-            threads[i] = std::thread([&ready, port] {
+        int num_clients = 10;
+        int num_requests = 10;
+        std::vector<std::thread> threads(num_clients);
+        for (int i = 0; i < num_clients; i++) {
+            threads[i] = std::thread([&ready, num_requests, port] {
                 ready.wait(false);
-                for (int j = 0; j < 10; j++) {
+                for (int j = 0; j < num_requests; j++) {
                     auto result = Call(port, Method::GET, "/foo");
                     EXPECT_THAT(result, HasSubstr("HTTP/1.1 200 OK"));
                 }
@@ -250,12 +266,12 @@ TEST(HttpServer, CallConcurrently) {
         }
         ready = true;
         ready.notify_all();
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < num_clients; i++) {
             threads[i].join();
         }
 
         // Assert
-        EXPECT_EQ(count, 40);
+        EXPECT_EQ(count, num_clients * num_requests);
     }
 }
 

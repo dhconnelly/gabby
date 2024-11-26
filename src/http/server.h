@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "http/types.h"
+#include "utils/thread_pool.h"
 
 namespace gabby {
 namespace http {
@@ -26,7 +27,9 @@ using OwnedFd = std::unique_ptr<int, void (*)(int*)>;
 
 class HttpServer {
 public:
+    // |handler| must be thread-safe
     HttpServer(const ServerConfig& config, Handler handler);
+
     int port() { return port_; }
     int total_threads() { return config_.worker_threads + 1; }
 
@@ -50,15 +53,11 @@ private:
     int port_;
     OwnedFd sock_;
     Handler handler_;
+    std::unique_ptr<ThreadPool> pool_;
 
-    std::vector<std::thread> threads_;
-    std::queue<Client> tasks_;
-
-    // used by the thread pool to monitor |run_| and |tasks_|.
-    std::mutex mux_;
-    std::condition_variable cond_;
-
-    // used by the poll() loop for graceful shutdown.
+    // we run a poll() loop in a thread and use a pipe to notify it
+    // about graceful shutdown
+    std::thread listener_;
     std::array<OwnedFd, 2> pipe_;  // [read, write]
     std::atomic<bool> run_;        // set to false to shut down
     std::atomic<bool> running_;    // set to indicate we can accept clients

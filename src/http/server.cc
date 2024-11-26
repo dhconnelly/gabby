@@ -247,44 +247,32 @@ HttpServer::HttpServer(const ServerConfig& config, Handler handler)
       handler_(handler),
       pipe_(MakePipe()),
       running_(0),
-      run_(false) {
-    if (config_.worker_threads < 1) {
-        throw std::invalid_argument("worker_threads must be at least 1");
-    }
-}
+      run_(false) {}
 
 void HttpServer::Start() {
     // TODO: add state variable and enforce state transitions
-
     LOG(DEBUG) << "starting server...";
     run_ = true;
-
-    LOG(DEBUG) << "starting listener thread";
-    threads_.reserve(total_threads());
-    threads_.emplace_back(&HttpServer::Listen, this);
-    LOG(DEBUG) << "starting " << config_.worker_threads << " worker threads";
-    for (int i = 0; i < config_.worker_threads; i++) {
-        threads_.emplace_back(&HttpServer::WorkerAccept, this, i);
-    }
-
+    listener_ = std::thread(&HttpServer::Listen, this);
+    pool_ = std::make_unique<ThreadPool>(config_.worker_threads);
     LOG(DEBUG) << "waiting for server to be ready...";
-    running_.wait(0);
+    running_.wait(false);
     LOG(DEBUG) << "server ready.";
 }
 
 void HttpServer::Stop() {
-    LOG(DEBUG) << "stopping server...";
+    LOG(DEBUG) << "sending stop notification...";
     run_ = false;
-    run_.notify_all();
     char done = 1;
     write(*pipe_[1], &done, 1);
+    running_.wait(true);
+    LOG(DEBUG) << "sent stop notification";
 }
 
 void HttpServer::Wait() {
     LOG(DEBUG) << "waiting on all threads to exit...";
-    for (int i = 0; i < total_threads(); i++) {
-        threads_[i].join();
-    }
+    listener_.join();
+    pool_.reset();
     LOG(DEBUG) << "all threads exited.";
 }
 
@@ -325,6 +313,9 @@ void HttpServer::Listen() {
         if (fds[0].revents & POLLIN) Accept();
     }
     LOG(DEBUG) << "http server loop finished, listener thread exiting";
+
+    running_ = false;
+    running_.notify_one();
 }
 
 void HttpServer::WorkerAccept(int id) {
@@ -341,21 +332,22 @@ void HttpServer::Accept() {
     if (client_fd < 0) {
         throw SystemError(errno);
     }
-
     char ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, ip, INET_ADDRSTRLEN);
     HttpServer::Client client{to_owned(client_fd), ntohs(client_addr.sin_port),
                               std::string(ip)};
 
-    try {
-        Handle(std::move(client));
-    } catch (std::system_error& e) {
-        if (e.code().value() == ECONNABORTED) {
-            LOG(WARN) << e.what();
-        } else {
-            throw e;
-        }
-    }
+    // hand it off to a worker thread
+    pool_->Offer(
+        [this, client = std::make_shared<Client>(std::move(client))]() mutable {
+            LOG(DEBUG) << std::format("offering {}:{} to thread pool",
+                                      client->addr, client->port);
+            try {
+                Handle(std::move(*client));
+            } catch (std::exception& e) {
+                LOG(ERROR) << e.what();
+            }
+        });
 }
 
 void HttpServer::Handle(Client&& client) {
