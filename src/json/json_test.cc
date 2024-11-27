@@ -1,6 +1,6 @@
 #include "json/json.h"
 
-#include <gtest/gtest.h>
+#include "test/test.h"
 
 namespace gabby {
 namespace json {

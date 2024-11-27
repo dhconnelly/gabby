@@ -1,10 +1,9 @@
 #include "router.h"
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <string>
 #include <string_view>
+
+#include "test/test.h"
 
 namespace gabby {
 namespace http {

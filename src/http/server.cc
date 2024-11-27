@@ -134,9 +134,11 @@ OwnedFd to_owned(int fd) {
     });
 }
 
-OwnedFd MakeSocket() {
+OwnedFd ServerSocket() {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) throw SystemError(errno);
+    int reuse = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
     return to_owned(fd);
 }
 
@@ -243,7 +245,7 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
 HttpServer::HttpServer(const ServerConfig& config, Handler handler)
     : config_(config),
       port_(config.port),
-      sock_(MakeSocket()),
+      sock_(ServerSocket()),
       handler_(handler),
       pipe_(MakePipe()),
       running_(0),
@@ -265,8 +267,8 @@ void HttpServer::Stop() {
     run_ = false;
     char done = 1;
     write(*pipe_[1], &done, 1);
-    running_.wait(true);
     LOG(DEBUG) << "sent stop notification";
+    running_.wait(true);
 }
 
 void HttpServer::Wait() {

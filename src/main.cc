@@ -34,8 +34,9 @@ Config kDefaultConfig{
         },
 };
 
+template <typename IntTypeT>
 bool ParseIntFlag(int argc, char* argv[], std::string_view flag, int* argi,
-                  int* val) {
+                  IntTypeT* val) {
     if (argv[*argi] != flag) return false;
     if (*argi + 1 == argc) Die(std::format("missing argument for {}", flag));
     *val = std::stoi(argv[*argi + 1]);
@@ -58,6 +59,8 @@ Config ParseArgs(int argc, char* argv[]) {
             config.log_level = LogLevel::WARN;
         } else if (strcmp(argv[i], "--debug") == 0) {
             config.log_level = LogLevel::DEBUG;
+        } else if (ParseIntFlag(argc, argv, "--workers", &i,
+                                &config.server_config.worker_threads)) {
         } else {
             Die(std::format("invalid argument: {}", argv[i]));
         }
