@@ -221,14 +221,12 @@ TEST(HttpServer, CallSuccessfully) {
     EXPECT_TRUE(*done);
     EXPECT_SUBSTR(result, "HTTP/1.1 200 OK");
     EXPECT_SUBSTR(result, data);
-    /*
-    EXPECT_THAT(
-        received,
-        AllOf(Field(&Request::method, Method::GET),
-              Field(&Request::path, "/foo"),
-              Field(&Request::headers,
-                    UnorderedElementsAre(Pair("a", "b"), Pair("1", "2")))));
-                    */
+
+    // TODO: implement EXPECT_THAT and matchers
+    EXPECT_EQ(Method::GET, received.method);
+    EXPECT_EQ("/foo", received.path);
+    EXPECT_EQ(received.headers["a"], "b");
+    EXPECT_EQ(received.headers["1"], "2");
 }
 
 TEST(HttpServer, CallConcurrently) {
