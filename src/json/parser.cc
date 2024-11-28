@@ -1,6 +1,8 @@
 #include "json/parser.h"
 
 #include <cassert>
+#include <cerrno>
+#include <cstring>
 #include <format>
 
 #include "utils/logging.h"
@@ -251,9 +253,21 @@ ValuePtr Parse(FILE* f, int size) {
 }
 
 ValuePtr Parse(const std::string& s) {
+    LOG(DEBUG) << "parsing: [" << s << "]";
+    LOG(DEBUG) << "size of data: " << s.size();
     std::unique_ptr<FILE, decltype(&fclose)> f(
         fmemopen((void*)s.data(), s.size(), "r"), fclose);
-    if (f.get() == nullptr) throw SystemError(errno);
+    if (f.get() == nullptr) {
+        LOG(DEBUG) << "fmemopen error: " << strerror(errno);
+        throw SystemError(errno);
+    }
+    int c = fgetc(f.get());
+    if (c == EOF) {
+        LOG(DEBUG) << "first read got eof, errno " << strerror(errno);
+    } else {
+        LOG(DEBUG) << "first char: " << c << " [" << char(c) << ']';
+        ungetc(c, f.get());
+    }
     return Parse(f.get(), s.size());
 }
 

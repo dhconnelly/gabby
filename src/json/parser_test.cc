@@ -6,7 +6,10 @@
 namespace gabby {
 namespace json {
 
-TEST(JSON, ParseNull) { EXPECT_EQ(*Value::Nil(), *Parse("null")); }
+TEST(JSON, ParseNull) {
+    ScopedLogLevel scope(LogLevel::DEBUG);
+    EXPECT_EQ(*Value::Nil(), *Parse("null"));
+}
 
 TEST(JSON, ParseNumber) {
     EXPECT_EQ(*Value::Number(0), *Parse("0"));
@@ -45,6 +48,7 @@ TEST(JSON, ParseObject) {
 }
 
 TEST(JSON, ParseCompletionRequest) {
+    ScopedLogLevel scope(LogLevel::DEBUG);
     EXPECT_EQ(
         *Value::Object({
             {"model", Value::String("gabby-1")},
