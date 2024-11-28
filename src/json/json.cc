@@ -3,9 +3,9 @@
 #include <cassert>
 #include <cstdio>
 #include <format>
-#include <memory>
 #include <sstream>
 
+#include "json/parser.h"
 #include "utils/logging.h"
 
 namespace gabby {
@@ -29,8 +29,7 @@ std::string to_string(Type type) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
-    // TODO
-    return os;
+    return value.print(os);
 }
 
 std::string to_string(const Value& value) {
@@ -44,9 +43,7 @@ TypeError::TypeError(Type want, Type got)
                             to_string(got))) {}
 
 /* static */
-ValuePtr Value::Parse(FILE* f) {
-    return std::shared_ptr<Value>(new NumberValue(0.0));
-}
+ValuePtr Value::Parse(FILE* f) { return Parser(f).Value(); }
 
 /* static */
 ValuePtr Value::Parse(const std::string_view s) {

@@ -1,6 +1,7 @@
 #ifndef GABBY_TEST_H_
 #define GABBY_TEST_H_
 
+#include <cmath>
 #include <format>
 #include <iostream>
 #include <source_location>
@@ -105,6 +106,13 @@ bool equal(const T& t, const U& u) {
 
 #define EXPECT_EQ(got, want)                              \
     if (!equal((got), (want))) {                          \
+        error(std::format("FAIL: {} != {}", #want, #got), \
+              std::source_location::current());           \
+        fail();                                           \
+    }
+
+#define EXPECT_FLOAT_EQ(got, want, eps)                   \
+    if (abs((want) - (got) > eps)) {                      \
         error(std::format("FAIL: {} != {}", #want, #got), \
               std::source_location::current());           \
         fail();                                           \

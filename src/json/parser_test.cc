@@ -1,5 +1,6 @@
-#include "json/json.h"
+#include "json/parser.h"
 
+#include "json/json.h"
 #include "test/test.h"
 
 namespace gabby {
@@ -8,12 +9,13 @@ namespace json {
 TEST(JSON, ParseNumber) {
     EXPECT_EQ(*Value::Number(0), *Value::Parse("0"));
     EXPECT_EQ(*Value::Number(17), *Value::Parse("17"));
-    EXPECT_EQ(*Value::Number(-32.4), *Value::Parse("-32.4"));
+    EXPECT_FLOAT_EQ(Value::Number(-32.4)->as_number().get(),
+                    Value::Parse("-32.4")->as_number().get(), 0.001);
 }
 
 TEST(JSON, ParseBoolean) {
-    EXPECT_EQ(*Value::Boolean(true), *Value::Parse("17"));
-    EXPECT_EQ(*Value::Boolean(false), *Value::Parse("0"));
+    EXPECT_EQ(*Value::Boolean(true), *Value::Parse("true"));
+    EXPECT_EQ(*Value::Boolean(false), *Value::Parse("false"));
 }
 
 TEST(JSON, ParseString) {

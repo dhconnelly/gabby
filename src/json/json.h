@@ -50,6 +50,7 @@ class Value {
 public:
     virtual ~Value() {}
     virtual Type type() const = 0;
+    virtual std::ostream& print(std::ostream& os) const = 0;
 
     static ValuePtr Boolean(bool value);
     static ValuePtr String(std::string value);
@@ -60,17 +61,22 @@ public:
     static ValuePtr Parse(FILE* f);
     static ValuePtr Parse(const std::string_view s);
 
-    // downcasts
-    virtual NumberValue& as_number() { throw TypeError(Type::NUM, type()); }
-    virtual BooleanValue& as_boolean() { throw TypeError(Type::BOOL, type()); }
-    virtual ObjectValue& as_object() { throw TypeError(Type::OBJ, type()); }
-    virtual StringValue& as_string() { throw TypeError(Type::STR, type()); }
-    virtual ArrayValue& as_array() { throw TypeError(Type::ARRAY, type()); }
-    const NumberValue& as_number() const { return as_number(); }
-    const BooleanValue& as_boolean() const { return as_boolean(); }
-    const ObjectValue& as_object() const { return as_object(); }
-    const StringValue& as_string() const { return as_string(); }
-    const ArrayValue& as_array() const { return as_array(); }
+    // downcasts. specific type must implement their own
+    virtual const NumberValue& as_number() const {
+        throw TypeError(Type::NUM, type());
+    }
+    virtual const BooleanValue& as_boolean() const {
+        throw TypeError(Type::BOOL, type());
+    }
+    virtual const ObjectValue& as_object() const {
+        throw TypeError(Type::OBJ, type());
+    }
+    virtual const StringValue& as_string() const {
+        throw TypeError(Type::STR, type());
+    }
+    virtual const ArrayValue& as_array() const {
+        throw TypeError(Type::ARRAY, type());
+    }
 
     // specific types must override their equals function
     virtual bool eq(const Value& other) const = 0;
@@ -107,6 +113,10 @@ public:
     bool eq(const BooleanValue& other) const override {
         return get() == other.get();
     }
+    const BooleanValue& as_boolean() const override { return *this; }
+    std::ostream& print(std::ostream& os) const override {
+        return os << (get() ? "true" : "false");
+    }
 
 protected:
     using AbstractValue::AbstractValue;
@@ -120,6 +130,8 @@ public:
     bool eq(const NumberValue& other) const override {
         return get() == other.get();
     }
+    const NumberValue& as_number() const override { return *this; }
+    std::ostream& print(std::ostream& os) const override { return os << get(); }
 
 protected:
     using AbstractValue::AbstractValue;
@@ -132,6 +144,8 @@ public:
     bool eq(const StringValue& other) const override {
         return get() == other.get();
     }
+    const StringValue& as_string() const override { return *this; }
+    std::ostream& print(std::ostream& os) const override { return os << get(); }
 
 protected:
     using AbstractValue::AbstractValue;
@@ -144,9 +158,20 @@ public:
     bool eq(const ArrayValue& other) const override {
         if (get().size() != other.get().size()) return false;
         for (int i = 0; i < get().size(); i++) {
-            if (get()[i] != other.get()[i]) return false;
+            if (*get()[i] != *other.get()[i]) return false;
         }
         return true;
+    }
+    const ArrayValue& as_array() const override { return *this; }
+    std::ostream& print(std::ostream& os) const override {
+        os << "[";
+        bool first = true;
+        for (const ValuePtr& value : get()) {
+            if (!first) os << ", ";
+            os << *value;
+            first = false;
+        }
+        return os << "]";
     }
 
 protected:
@@ -163,9 +188,20 @@ public:
         if (get().size() != other.get().size()) return false;
         for (const auto& [k, v] : get()) {
             auto it = other.get().find(k);
-            if (it == other.get().end() || it->second != v) return false;
+            if (it == other.get().end() || *it->second != *v) return false;
         }
         return true;
+    }
+    const ObjectValue& as_object() const override { return *this; }
+    std::ostream& print(std::ostream& os) const override {
+        os << "{";
+        bool first = true;
+        for (const auto& [k, v] : get()) {
+            if (!first) os << ", ";
+            os << '"' << k << "\": " << *v;
+            first = false;
+        }
+        return os << "}";
     }
 
 protected:
