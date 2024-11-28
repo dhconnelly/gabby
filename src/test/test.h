@@ -3,6 +3,7 @@
 
 #include <format>
 #include <iostream>
+#include <source_location>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,19 +20,32 @@ public:
 
     bool success() { return failures_ == 0; }
 
+    void error(const std::string_view message, std::source_location loc) {
+        std::cerr << std::format("TEST: {}:{}: {}\n", loc.file_name(),
+                                 loc.line(), message);
+    }
+
+    void error(const std::string_view message) {
+        std::cerr << std::format("TEST: {}:{}: {}\n", suite(), testcase(),
+                                 message);
+    }
+
+    void log(const std::string_view message) {
+        std::cout << std::format("TEST: {}:{}: {}\n", suite(), testcase(),
+                                 message);
+    }
+
     void RunSafe() {
         try {
             Run();
-        } catch (std::exception& e) {
-            std::cerr << std::format("TEST: {}:{}: FAIL: got exception: {}\n",
-                                     suite(), testcase(), e.what());
+        } catch (const std::exception& e) {
+            error(std::format("caught exception: {}", e.what()));
             fail();
         }
         if (failures_ == 0) {
-            std::cout << std::format("TEST: {}:{}: ok\n", suite(), testcase());
+            log(std::format("ok", suite(), testcase()));
         } else {
-            std::cout << std::format("TEST: {}:{}: failure!\n", suite(),
-                                     testcase());
+            log(std::format("failure!", suite(), testcase()));
         }
     }
 
@@ -68,18 +82,18 @@ extern std::vector<TestCase*>* kTestCases;
     CONCAT(register_, CONCAT(CONCAT(Test, Suite), Case));        \
     void CONCAT(CONCAT(Test, Suite), Case)::Run()
 
-#define EXPECT_TRUE(want)                                                  \
-    if (!(want)) {                                                         \
-        std::cerr << std::format("TEST: {}:{}: FAIL: {}\n", suite_, case_, \
-                                 #want);                                   \
-        fail();                                                            \
+#define EXPECT_TRUE(want)                       \
+    if (!(want)) {                              \
+        error(std::format("FAIL: {}", #want),   \
+              std::source_location::current()); \
+        fail();                                 \
     }
 
-#define EXPECT_FALSE(want)                                                     \
-    if ((want)) {                                                              \
-        std::cerr << std::format("TEST: {}:{}: FAIL: wanted NOT {}\n", suite_, \
-                                 case_, #want);                                \
-        fail();                                                                \
+#define EXPECT_FALSE(want)                       \
+    if ((want)) {                                \
+        error(std::format("FAIL: !({})", #want), \
+              std::source_location::current());  \
+        fail();                                  \
     }
 
 bool equal(std::string_view a, std::string_view b);
@@ -89,11 +103,11 @@ bool equal(const T& t, const U& u) {
     return t == u;
 }
 
-#define EXPECT_EQ(got, want)                                              \
-    if (!equal((got), (want))) {                                          \
-        std::cerr << std::format("TEST: {}:{}: FAIL: {} != {}\n", suite_, \
-                                 case_, #want, #got);                     \
-        fail();                                                           \
+#define EXPECT_EQ(got, want)                              \
+    if (!equal((got), (want))) {                          \
+        error(std::format("FAIL: {} != {}", #want, #got), \
+              std::source_location::current());           \
+        fail();                                           \
     }
 
 #define EXPECT_SUBSTR(haystack, needle) \

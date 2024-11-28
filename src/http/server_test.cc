@@ -10,6 +10,7 @@
 #include <format>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <thread>
 
 #include "test/test.h"

@@ -23,7 +23,7 @@ public:
 
 private:
     http::Handler HealthCheck();
-    http::Handler ChatCompletion();
+    http::Handler ChatCompletions();
 
     Config config_;
     http::HttpServer server_;

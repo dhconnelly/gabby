@@ -1,5 +1,6 @@
 #include "http/types.h"
 
+#include <cassert>
 #include <cstring>
 #include <format>
 #include <iostream>
@@ -18,6 +19,7 @@ std::string to_string(StatusCode code) {
         case StatusCode::RequestTimeout: return "Request Timeout";
         case StatusCode::InternalServerError: return "Internal Server Error";
     }
+    assert(false);
 }
 
 std::string to_string(Method method) {
@@ -25,6 +27,7 @@ std::string to_string(Method method) {
         case Method::GET: return "GET";
         case Method::POST: return "POST";
     }
+    assert(false);
 }
 
 std::ostream& operator<<(std::ostream& os, StatusCode status) {
