@@ -28,10 +28,19 @@ constexpr const std::string_view to_string(TokenType type) {
 }
 
 int Scanner::GetChar() {
-    if (pos_ >= size_) return EOF;
+    if (pos_ >= size_) {
+        LOG(DEBUG) << std::format("exhausted stream, pos = {}, size = {}", pos_,
+                                  size_);
+        return EOF;
+    }
     clearerr(f_);
     int c = fgetc(f_);
-    if (c != EOF) ++pos_;
+    if (c != EOF) {
+        ++pos_;
+        LOG(DEBUG) << std::format("no eof, got {}, new pos = {}", c, pos_);
+    } else {
+        LOG(DEBUG) << std::format("got legitimate eof at pos {}", pos_);
+    }
     return c;
 }
 
