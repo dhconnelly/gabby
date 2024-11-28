@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include "http/router.h"
+#include "json/json.h"
 #include "model/loader.h"
 #include "utils/logging.h"
 
@@ -38,8 +39,13 @@ std::string ReadAll(FILE* stream) {
 
 http::Handler InferenceService::ChatCompletions() {
     return [](http::Request& req, http::ResponseWriter& resp) {
-        std::string request = ReadAll(req.stream);
-        LOG(DEBUG) << "got request: " << request;
+        if (req.method != http::Method::POST) {
+            throw http::NotFoundError();
+        }
+
+        json::ValuePtr request = json::Value::Parse(req.stream);
+        LOG(DEBUG) << "got request: " << *request;
+
         resp.WriteStatus(http::StatusCode::OK);
         resp.WriteData(R"(
             {

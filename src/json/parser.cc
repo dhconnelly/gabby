@@ -39,6 +39,7 @@ std::optional<char> Scanner::Peek() {
     int c = fgetc(f_);
     if (c == EOF) {
         if (feof(f_)) return {};
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return {};
         throw SystemError(errno);
     }
     assert(ungetc(c, f_) == c);

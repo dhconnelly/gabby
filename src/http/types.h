@@ -52,6 +52,12 @@ public:
     StatusCode status() const override { return StatusCode::RequestTimeout; }
 };
 
+class NotFoundError : public HttpException {
+public:
+    explicit NotFoundError() : HttpException("not found") {}
+    StatusCode status() const override { return StatusCode::NotFound; }
+};
+
 enum class Method {
     GET,
     POST,
