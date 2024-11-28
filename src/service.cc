@@ -36,7 +36,8 @@ std::string ReadAll(FILE* stream) {
     return data;
 }
 
-static json::ValuePtr kStubResponse = json::Parse(R"(
+json::ValuePtr StubResponse() {
+    return json::Parse(R"(
     {
         "id": "gabby-completion-123",
         "object": "chat.completion",
@@ -64,6 +65,7 @@ static json::ValuePtr kStubResponse = json::Parse(R"(
         }
     }
 )");
+}
 
 }  // namespace
 
@@ -94,7 +96,7 @@ http::Handler InferenceService::ChatCompletions() {
         LOG(DEBUG) << "read json request: " << *request;
 
         resp.WriteStatus(http::StatusCode::OK);
-        resp.WriteData(to_string(*kStubResponse));
+        resp.WriteData(to_string(*StubResponse()));
     };
 }
 
