@@ -7,8 +7,8 @@
 #include <queue>
 #include <thread>
 
+#include "http/thread_pool.h"
 #include "http/types.h"
-#include "utils/thread_pool.h"
 
 namespace gabby {
 namespace http {

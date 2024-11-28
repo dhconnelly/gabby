@@ -17,14 +17,12 @@ namespace gabby {
 
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     return os << "{ server_config: " << config.server_config  //
-              << ", models_dir: " << config.models_dir        //
               << ", log_level: " << config.log_level          //
               << " }";
 }
 
 Config kDefaultConfig{
     .log_level = LogLevel::OFF,
-    .models_dir = "",
     .server_config =
         http::ServerConfig{
             .port = 8080,

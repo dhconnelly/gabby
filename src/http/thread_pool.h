@@ -1,5 +1,5 @@
-#ifndef GABBY_UTILS_THREAD_POOL_H_
-#define GABBY_UTILS_THREAD_POOL_H_
+#ifndef GABBY_HTTP_THREAD_POOL_H_
+#define GABBY_HTTP_THREAD_POOL_H_
 
 #include <condition_variable>
 #include <deque>
@@ -32,4 +32,4 @@ private:
 
 }  // namespace gabby
 
-#endif  // GABBY_UTILS_THREAD_POOL_H_
+#endif  // GABBY_HTTP_THREAD_POOL_H_
