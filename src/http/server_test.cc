@@ -176,14 +176,17 @@ TEST(HttpServer, CallConcurrently) {
         int num_clients = 10;
         int num_requests = 10;
         std::vector<std::thread> threads(num_clients);
+        std::mutex mux;
         std::vector<std::string> results;
         for (int i = 0; i < num_clients; i++) {
-            threads[i] = std::thread([&results, &ready, num_requests, port] {
-                ready.wait(false);
-                for (int j = 0; j < num_requests; j++) {
-                    results.push_back(Call(port, Method::GET, "/foo"));
-                }
-            });
+            threads[i] =
+                std::thread([&mux, &results, &ready, num_requests, port] {
+                    ready.wait(false);
+                    for (int j = 0; j < num_requests; j++) {
+                        std::scoped_lock guard(mux);
+                        results.push_back(Call(port, Method::GET, "/foo"));
+                    }
+                });
         }
         ready = true;
         ready.notify_all();
