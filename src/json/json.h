@@ -88,9 +88,11 @@ bool operator==(const Value& lhs, const Value& rhs);
 template <typename T, Type typeVal>
 class AbstractValue : public Value {
 public:
-    explicit AbstractValue(T value) : value_(value) {}
     Type type() const override { return typeVal; }
     const T& get() const { return value_; }
+
+protected:
+    explicit AbstractValue(T value) : value_(value) {}
 
 private:
     T value_;
@@ -101,36 +103,43 @@ private:
 
 class BooleanValue : public AbstractValue<bool, Type::BOOL> {
 public:
-    using AbstractValue::AbstractValue;
     bool eq(const Value& other) const override { return other.eq(*this); }
     bool eq(const BooleanValue& other) const override {
         return get() == other.get();
     }
+
+protected:
+    using AbstractValue::AbstractValue;
+    friend class Value;
 };
 
 class NumberValue : public AbstractValue<double, Type::NUM> {
 public:
-    using AbstractValue::AbstractValue;
     explicit NumberValue(int value) : AbstractValue((double)value) {}
     bool eq(const Value& other) const override { return other.eq(*this); }
     bool eq(const NumberValue& other) const override {
         return get() == other.get();
     }
+
+protected:
+    using AbstractValue::AbstractValue;
+    friend class Value;
 };
 
 class StringValue : public AbstractValue<std::string, Type::STR> {
 public:
-    using AbstractValue::AbstractValue;
     bool eq(const Value& other) const override { return other.eq(*this); }
     bool eq(const StringValue& other) const override {
         return get() == other.get();
     }
+
+protected:
+    using AbstractValue::AbstractValue;
+    friend class Value;
 };
 
 class ArrayValue : public AbstractValue<std::vector<ValuePtr>, Type::ARRAY> {
 public:
-    ArrayValue(std::vector<ValuePtr> values) : AbstractValue(values) {}
-
     bool eq(const Value& other) const override { return other.eq(*this); }
     bool eq(const ArrayValue& other) const override {
         if (get().size() != other.get().size()) return false;
@@ -139,15 +148,16 @@ public:
         }
         return true;
     }
+
+protected:
+    ArrayValue(std::vector<ValuePtr> values) : AbstractValue(values) {}
+    friend class Value;
 };
 
 class ObjectValue
     : public AbstractValue<std::unordered_map<std::string, ValuePtr>,
                            Type::OBJ> {
 public:
-    ObjectValue(std::unordered_map<std::string, ValuePtr> values)
-        : AbstractValue(values) {}
-
     bool eq(const Value& other) const override { return other.eq(*this); }
     bool eq(const ObjectValue& other) const override {
         if (get().size() != other.get().size()) return false;
@@ -157,6 +167,11 @@ public:
         }
         return true;
     }
+
+protected:
+    ObjectValue(std::unordered_map<std::string, ValuePtr> values)
+        : AbstractValue(values) {}
+    friend class Value;
 };
 
 }  // namespace json
