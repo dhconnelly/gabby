@@ -27,9 +27,10 @@ constexpr const std::string_view to_string(TokenType type) {
 
 int Scanner::getc() {
     if (pos_ >= size_) return EOF;
-    ++pos_;
     clearerr(f_);
-    return fgetc(f_);
+    int c = fgetc(f_);
+    if (c != EOF) ++pos_;
+    return c;
 }
 
 void Scanner::ungetc(int c) {
