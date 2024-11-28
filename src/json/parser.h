@@ -66,7 +66,7 @@ private:
 };
 
 ValuePtr Parse(FILE* f, int size);
-ValuePtr Parse(const std::string_view s);
+ValuePtr Parse(const std::string& s);
 
 }  // namespace json
 }  // namespace gabby

@@ -242,7 +242,6 @@ ValuePtr Parser::Value() {
     }
 }
 
-/* static */
 ValuePtr Parse(FILE* f, int size) {
     auto parser = Parser(f, size);
     auto value = parser.Value();
@@ -250,8 +249,7 @@ ValuePtr Parse(FILE* f, int size) {
     return value;
 }
 
-/* static */
-ValuePtr Parse(const std::string_view s) {
+ValuePtr Parse(const std::string& s) {
     std::unique_ptr<FILE, decltype(&fclose)> f(
         fmemopen((void*)s.data(), s.size(), "r"), fclose);
     if (f.get() == nullptr) throw SystemError(errno);
