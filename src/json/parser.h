@@ -31,22 +31,29 @@ struct Token {
 
 class Scanner {
 public:
-    Scanner(FILE* f) : f_(f) {}
-    std::optional<Token> Scan();
+    Scanner(FILE* f, int size) : f_(f), size_(size) {}
+    std::optional<Token> ScanSkipWhitespace();
+    int pos() const { return pos_; }
 
 private:
     void SkipWhitespace();
     std::optional<char> Peek();
     char Advance();
+    int getc();
+    void ungetc(int c);
+    std::optional<Token> Scan();
 
     FILE* f_;
+    int size_;
+    int pos_ = 0;
 };
 
 class Parser {
 public:
-    Parser(FILE* f) : scan_(Scanner(f)) {}
+    Parser(FILE* f, int size) : scan_(Scanner(f, size)) {}
 
     ValuePtr Value();
+    int pos() const { return scan_.pos(); }
 
 private:
     std::optional<Token> Peek();
@@ -56,6 +63,9 @@ private:
     Scanner scan_;
     std::optional<Token> lookahead_;
 };
+
+ValuePtr Parse(FILE* f, int size);
+ValuePtr Parse(const std::string_view s);
 
 }  // namespace json
 }  // namespace gabby

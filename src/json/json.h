@@ -58,9 +58,6 @@ public:
     static ValuePtr Array(std::vector<ValuePtr> values);
     static ValuePtr Object(std::unordered_map<std::string, ValuePtr> values);
 
-    static ValuePtr Parse(FILE* f);
-    static ValuePtr Parse(const std::string_view s);
-
     // downcasts. specific type must implement their own
     virtual const NumberValue& as_number() const {
         throw TypeError(Type::NUM, type());
@@ -145,7 +142,9 @@ public:
         return get() == other.get();
     }
     const StringValue& as_string() const override { return *this; }
-    std::ostream& print(std::ostream& os) const override { return os << get(); }
+    std::ostream& print(std::ostream& os) const override {
+        return os << '"' << get() << '"';
+    }
 
 protected:
     using AbstractValue::AbstractValue;

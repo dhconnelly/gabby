@@ -1,9 +1,11 @@
 #include "service.h"
 
 #include <cstdio>
+#include <string>
 
 #include "http/router.h"
 #include "json/json.h"
+#include "json/parser.h"
 #include "model/loader.h"
 #include "utils/logging.h"
 
@@ -43,8 +45,25 @@ http::Handler InferenceService::ChatCompletions() {
             throw http::NotFoundError();
         }
 
-        json::ValuePtr request = json::Value::Parse(req.stream);
-        LOG(DEBUG) << "got request: " << *request;
+        auto content_length_it = req.headers.find("Content-Length");
+        if (content_length_it == req.headers.end()) {
+            throw http::BadRequestException("missing Content-Length");
+        }
+        int content_length;
+        try {
+            content_length = std::stoi(content_length_it->second);
+        } catch (...) {
+            throw http::BadRequestException("bad Content-Length");
+        }
+
+        LOG(DEBUG) << "reading " << content_length << " bytes as json...";
+        json::ValuePtr request;
+        try {
+            request = json::Parse(req.stream, content_length);
+        } catch (json::JSONError& e) {
+            throw http::BadRequestException("bad json");
+        }
+        LOG(DEBUG) << "read json request: " << *request;
 
         resp.WriteStatus(http::StatusCode::OK);
         resp.WriteData(R"(

@@ -24,38 +24,56 @@ constexpr const std::string_view to_string(TokenType type) {
     assert(false);
 }
 
+int Scanner::getc() {
+    if (pos_ >= size_) return EOF;
+    ++pos_;
+    clearerr(f_);
+    return fgetc(f_);
+}
+
+void Scanner::ungetc(int c) {
+    --pos_;
+    assert(::ungetc(c, f_) == c);
+}
+
 void Scanner::SkipWhitespace() {
     while (true) {
-        int c = fgetc(f_);
+        int c = getc();
         if (c == EOF) return;
         if (!isspace(c)) {
-            assert(ungetc(c, f_) == c);
+            ungetc(c);
             return;
         }
     }
 }
 
 std::optional<char> Scanner::Peek() {
-    int c = fgetc(f_);
+    int c = getc();
     if (c == EOF) {
-        if (feof(f_)) return {};
         if (errno == EAGAIN || errno == EWOULDBLOCK) return {};
-        throw SystemError(errno);
+        if (ferror(f_)) throw SystemError(errno);
+        return {};
     }
-    assert(ungetc(c, f_) == c);
+    ungetc(c);
     return c;
 }
 
 char Scanner::Advance() {
-    int c = fgetc(f_);
+    int c = getc();
     if (c == EOF) {
-        if (feof(f_)) throw ParsingError("unexpected eof");
-        throw SystemError(errno);
+        if (ferror(f_)) throw SystemError(errno);
+        else throw ParsingError("unexpected eof");
     }
     return c;
 }
 
 bool is_delim(std::optional<char> c) { return !c.has_value() || !isalnum(*c); }
+
+std::optional<Token> Scanner::ScanSkipWhitespace() {
+    auto tok = Scan();
+    SkipWhitespace();
+    return tok;
+}
 
 std::optional<Token> Scanner::Scan() {
     using enum TokenType;
@@ -132,7 +150,7 @@ std::optional<Token> Scanner::Scan() {
 }
 
 std::optional<Token> Parser::Peek() {
-    if (!lookahead_.has_value()) lookahead_ = scan_.Scan();
+    if (!lookahead_.has_value()) lookahead_ = scan_.ScanSkipWhitespace();
     return lookahead_;
 }
 
@@ -172,7 +190,6 @@ ValuePtr Parser::Value() {
                 values.push_back(Value());
             }
             Eat(RBRACKET);
-            LOG(DEBUG) << "got " << values.size() << " values";
             return Value::Array(values);
         }
 
@@ -197,6 +214,22 @@ ValuePtr Parser::Value() {
             throw ParsingError(
                 std::format("bad value: {}", to_string(tok->type)));
     }
+}
+
+/* static */
+ValuePtr Parse(FILE* f, int size) {
+    auto parser = Parser(f, size);
+    auto value = parser.Value();
+    if (parser.pos() != size) throw ParsingError("unexpected trailing data");
+    return value;
+}
+
+/* static */
+ValuePtr Parse(const std::string_view s) {
+    std::unique_ptr<FILE, decltype(&fclose)> f(
+        fmemopen((void*)s.data(), s.size(), "r"), fclose);
+    if (f.get() == nullptr) throw SystemError(errno);
+    return Parse(f.get(), s.size());
 }
 
 }  // namespace json

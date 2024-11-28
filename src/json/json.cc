@@ -42,17 +42,6 @@ TypeError::TypeError(Type want, Type got)
     : JSONError(std::format("wrong type: want {}, got {}", to_string(want),
                             to_string(got))) {}
 
-/* static */
-ValuePtr Value::Parse(FILE* f) { return Parser(f).Value(); }
-
-/* static */
-ValuePtr Value::Parse(const std::string_view s) {
-    std::unique_ptr<FILE, decltype(&fclose)> f(
-        fmemopen((void*)s.data(), s.size(), "r"), fclose);
-    if (f.get() == nullptr) throw SystemError(errno);
-    return Parse(f.get());
-}
-
 bool operator==(const Value& lhs, const Value& rhs) { return lhs.eq(rhs); }
 
 ValuePtr Value::Boolean(bool value) {

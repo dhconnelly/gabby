@@ -7,37 +7,37 @@ namespace gabby {
 namespace json {
 
 TEST(JSON, ParseNumber) {
-    EXPECT_EQ(*Value::Number(0), *Value::Parse("0"));
-    EXPECT_EQ(*Value::Number(17), *Value::Parse("17"));
+    EXPECT_EQ(*Value::Number(0), *Parse("0"));
+    EXPECT_EQ(*Value::Number(17), *Parse("17"));
     EXPECT_FLOAT_EQ(Value::Number(-32.4)->as_number().get(),
-                    Value::Parse("-32.4")->as_number().get(), 0.001);
+                    Parse("-32.4")->as_number().get(), 0.001);
 }
 
 TEST(JSON, ParseBoolean) {
-    EXPECT_EQ(*Value::Boolean(true), *Value::Parse("true"));
-    EXPECT_EQ(*Value::Boolean(false), *Value::Parse("false"));
+    EXPECT_EQ(*Value::Boolean(true), *Parse("true"));
+    EXPECT_EQ(*Value::Boolean(false), *Parse("false"));
 }
 
 TEST(JSON, ParseString) {
-    EXPECT_EQ(*Value::String(""), *Value::Parse("\"\""));
-    EXPECT_EQ(*Value::String("foo bar"), *Value::Parse("\"foo bar\""));
+    EXPECT_EQ(*Value::String(""), *Parse("\"\""));
+    EXPECT_EQ(*Value::String("foo bar"), *Parse("\"foo bar\""));
 }
 
 TEST(JSON, ParseArray) {
-    EXPECT_EQ(*Value::Array({}), *Value::Parse("[]"));
+    EXPECT_EQ(*Value::Array({}), *Parse("[]"));
     EXPECT_EQ(*Value::Array({Value::Boolean(true), Value::String("abc")}),
-              *Value::Parse("[true, \"abc\"]"));
+              *Parse("[true, \"abc\"]"));
     EXPECT_EQ(*Value::Array({Value::Array({}), Value::Array({})}),
-              *Value::Parse("[[],[]]"));
+              *Parse("[[],[]]"));
 }
 
 TEST(JSON, ParseObject) {
-    EXPECT_EQ(*Value::Object({}), *Value::Parse("{}"));
+    EXPECT_EQ(*Value::Object({}), *Parse("{}"));
     EXPECT_EQ(*Value::Object({
                   {std::string("a"), Value::String("b")},
                   {std::string("c"), Value::Number(1)},
               }),
-              *Value::Parse("{\"a\": \"b\", \"c\": 1}"));
+              *Parse("{\"a\": \"b\", \"c\": 1}"));
 }
 
 TEST(JSON, ParseCompletionRequest) {
@@ -56,7 +56,7 @@ TEST(JSON, ParseCompletionRequest) {
                            })})},
             {"stream", Value::Boolean(true)},
         }),
-        *Value::Parse(R"(
+        *Parse(R"(
         {
             "model": "gabby-1",
             "messages": [
