@@ -28,25 +28,25 @@ constexpr const std::string_view to_string(TokenType type) {
 }
 
 int Scanner::GetChar() {
+    clearerr(f_);
+    if (lookahead_.has_value()) {
+        int c = *lookahead_;
+        lookahead_.reset();
+        ++pos_;
+        return c;
+    }
     if (pos_ >= size_) {
-        LOG(DEBUG) << std::format("exhausted stream, pos = {}, size = {}", pos_,
-                                  size_);
         return EOF;
     }
-    clearerr(f_);
     int c = fgetc(f_);
-    if (c != EOF) {
-        ++pos_;
-        LOG(DEBUG) << std::format("no eof, got {}, new pos = {}", c, pos_);
-    } else {
-        LOG(DEBUG) << std::format("got legitimate eof at pos {}", pos_);
-    }
+    if (c != EOF) ++pos_;
     return c;
 }
 
 void Scanner::UngetChar(int c) {
+    assert(!lookahead_.has_value());
     --pos_;
-    assert(::ungetc(c, f_) == c);
+    lookahead_ = c;
 }
 
 void Scanner::SkipWhitespace() {
@@ -262,21 +262,9 @@ ValuePtr Parse(FILE* f, int size) {
 }
 
 ValuePtr Parse(const std::string& s) {
-    LOG(DEBUG) << "parsing: [" << s << "]";
-    LOG(DEBUG) << "size of data: " << s.size();
     std::unique_ptr<FILE, decltype(&fclose)> f(
         fmemopen((void*)s.data(), s.size(), "r"), fclose);
-    if (f.get() == nullptr) {
-        LOG(DEBUG) << "fmemopen error: " << strerror(errno);
-        throw SystemError(errno);
-    }
-    int c = fgetc(f.get());
-    if (c == EOF) {
-        LOG(DEBUG) << "first read got eof, errno " << strerror(errno);
-    } else {
-        LOG(DEBUG) << "first char: " << c << " [" << char(c) << ']';
-        ungetc(c, f.get());
-    }
+    if (f.get() == nullptr) throw SystemError(errno);
     return Parse(f.get(), s.size());
 }
 

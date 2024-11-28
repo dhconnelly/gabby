@@ -47,6 +47,7 @@ private:
     FILE* f_;
     int size_;
     int pos_ = 0;
+    std::optional<int> lookahead_;
 };
 
 class Parser {
