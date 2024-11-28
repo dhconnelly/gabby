@@ -27,7 +27,7 @@ constexpr const std::string_view to_string(TokenType type) {
     assert(false);
 }
 
-int Scanner::getc() {
+int Scanner::GetChar() {
     if (pos_ >= size_) return EOF;
     clearerr(f_);
     int c = fgetc(f_);
@@ -35,35 +35,35 @@ int Scanner::getc() {
     return c;
 }
 
-void Scanner::ungetc(int c) {
+void Scanner::UngetChar(int c) {
     --pos_;
     assert(::ungetc(c, f_) == c);
 }
 
 void Scanner::SkipWhitespace() {
     while (true) {
-        int c = getc();
+        int c = GetChar();
         if (c == EOF) return;
         if (!isspace(c)) {
-            ungetc(c);
+            UngetChar(c);
             return;
         }
     }
 }
 
 std::optional<char> Scanner::Peek() {
-    int c = getc();
+    int c = GetChar();
     if (c == EOF) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) return {};
         if (ferror(f_)) throw SystemError(errno);
         return {};
     }
-    ungetc(c);
+    UngetChar(c);
     return c;
 }
 
 char Scanner::Advance() {
-    int c = getc();
+    int c = GetChar();
     if (c == EOF) {
         if (ferror(f_)) throw SystemError(errno);
         else throw ParsingError("unexpected eof");

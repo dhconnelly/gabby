@@ -40,8 +40,8 @@ private:
     void SkipWhitespace();
     std::optional<char> Peek();
     char Advance();
-    int getc();
-    void ungetc(int c);
+    int GetChar();
+    void UngetChar(int c);
     std::optional<Token> Scan();
 
     FILE* f_;
