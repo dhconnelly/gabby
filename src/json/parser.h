@@ -22,6 +22,7 @@ enum class TokenType {
     RBRACKET,
     COMMA,
     COLON,
+    NIL,
 };
 
 struct Token {

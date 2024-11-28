@@ -13,13 +13,12 @@
 #include <string>
 #include <thread>
 
+#include "http/test_client.h"
 #include "test/test.h"
 #include "utils/logging.h"
 
 namespace gabby {
 namespace http {
-
-constexpr int kNumRetries = 3;
 
 constexpr ServerConfig kTestConfig{
     .port = 0,
@@ -27,77 +26,6 @@ constexpr ServerConfig kTestConfig{
     .write_timeout_millis = 5000,
     .worker_threads = 3,
 };
-
-// note: doesn't perform any buffering
-class OutgoingSocket {
-public:
-    OutgoingSocket(OutgoingSocket&) = delete;
-    OutgoingSocket(OutgoingSocket&&) = delete;
-    OutgoingSocket& operator=(OutgoingSocket&) = delete;
-    OutgoingSocket& operator=(OutgoingSocket&&) = delete;
-    ~OutgoingSocket() { close(fd_); }
-
-    explicit OutgoingSocket(int port) {
-        fd_ = socket(AF_INET, SOCK_STREAM, 0);
-        struct sockaddr_in addr;
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(port);
-        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        while (connect(fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            if (errno == ECONNABORTED) continue;
-            else throw SystemError(errno);
-        }
-    }
-
-    void Write(const std::string_view data) {
-        if (data.empty()) return;
-        for (int n = 0; n < data.size();) {
-            int k = write(fd_, data.data() + n, data.size() - n);
-            if (k < 0) {
-                throw SystemError(errno);
-            }
-            n += k;
-        }
-    }
-
-    std::string ReadAll() {
-        std::string data;
-        char buf[1024];
-        int n;
-        while ((n = read(fd_, buf, 1024)) > 0) {
-            data.append(buf, n);
-        }
-        if (n < 0) throw SystemError(errno);
-        return data;
-    }
-
-private:
-    int fd_;
-};
-
-std::string Call(
-    int port, Method method, const std::string_view path,
-    const std::unordered_map<std::string, std::string>& headers = {}) {
-    for (int attempt = 0; attempt < kNumRetries; attempt++) {
-        try {
-            OutgoingSocket sock(port);
-            sock.Write(
-                std::format("{} {} HTTP/1.1\r\n", to_string(method), path));
-            for (const auto& [key, value] : headers) {
-                sock.Write(std::format("{}: {}\r\n", key, value));
-            }
-            sock.Write("\r\n");
-            return sock.ReadAll();
-        } catch (SystemError& e) {
-            if (e.error() == ECONNRESET) {
-                continue;
-            } else {
-                throw e;
-            }
-        }
-    }
-    throw std::runtime_error("exceeded max retries");
-}
 
 class TestServer {
 public:
@@ -129,7 +57,7 @@ TEST(HttpServer, CallAndHangUp) {
     // Act
     // The server should handle this gracefully.
     for (int i = 0; i < 5; i++) {
-        OutgoingSocket sock(server.port());
+        UnbufferedClientSocket sock(server.port());
     }
 
     // Assert
@@ -153,7 +81,7 @@ TEST(HttpServer, CallWithWriteDelay) {
 
     // Act
     // Sleep before sending the full request line.
-    OutgoingSocket sock(server.port());
+    UnbufferedClientSocket sock(server.port());
     sock.Write("GET ");
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     auto result = sock.ReadAll();
@@ -183,7 +111,7 @@ TEST(HttpServer, CallWithReadDelay) {
 
     // Act
     // Sleep so we can't ACK the full response.
-    OutgoingSocket sock(server.port());
+    UnbufferedClientSocket sock(server.port());
     sock.Write("GET / HTTP/1.1\r\n\r\n");
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     auto result = sock.ReadAll();

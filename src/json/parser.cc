@@ -20,6 +20,7 @@ constexpr const std::string_view to_string(TokenType type) {
         case RBRACKET: return "RBRACKET";
         case COMMA: return "COMMA";
         case COLON: return "COLON";
+        case NIL: return "NIL";
     }
     assert(false);
 }
@@ -90,6 +91,7 @@ std::optional<Token> Scanner::Scan() {
         case ',': return Token{.type = COMMA, .cargo = Advance()};
         case ':': return Token{.type = COLON, .cargo = Advance()};
 
+        // strings
         case '"': {
             Advance();
             std::string s;
@@ -103,6 +105,7 @@ std::optional<Token> Scanner::Scan() {
         }
     }
 
+    // numbers
     if (c == '-' || isdigit(c)) {
         std::string s;
 
@@ -112,13 +115,29 @@ std::optional<Token> Scanner::Scan() {
         // integral part
         do {
             s.push_back(Advance());
-        } while (!is_delim(Peek()));
+        } while (!is_delim(Peek()) && *Peek() != 'e');
 
         // decimal
-        if (maybe_c = Peek(); maybe_c.has_value() && *maybe_c == '.') {
+        if (Peek() == std::optional('.')) {
             s.push_back(Advance());
 
             // fractional part
+            while (!is_delim(Peek()) && *Peek() != 'e') {
+                s.push_back(Advance());
+            }
+        }
+
+        // scientific notation
+        if (Peek() == std::optional('e')) {
+            s.push_back(Advance());
+
+            // sign
+            if (maybe_c = Peek();
+                maybe_c == std::optional('+') || std::optional('-')) {
+                s.push_back(Advance());
+            }
+
+            // exponent
             while (!is_delim(Peek())) {
                 s.push_back(Advance());
             }
@@ -135,15 +154,18 @@ std::optional<Token> Scanner::Scan() {
         return Token{.type = NUM, .cargo = value};
     }
 
-    if (c == 't' || c == 'f') {
+    // null, booleans
+    if (isalpha(c)) {
         std::string s;
         do {
             s.push_back(Advance());
         } while (!is_delim(Peek()));
-        if (s != "true" && s != "false") {
-            throw ParsingError("invalid boolean: " + s);
+        if (s == "true" || s == "false") {
+            return Token{.type = BOOL, .cargo = (s == "true")};
         }
-        return Token{.type = BOOL, .cargo = (s == "true")};
+        if (s == "null") {
+            return Token{.type = NIL, .cargo = "null"};
+        }
     }
 
     throw ParsingError(std::format("bad token: {}", char(c)));
@@ -178,6 +200,10 @@ ValuePtr Parser::Value() {
         case NUM: return Value::Number(std::get<double>(Next().cargo));
         case STR: return Value::String(std::get<std::string>(Next().cargo));
         case BOOL: return Value::Boolean(std::get<bool>(Next().cargo));
+        case NIL: {
+            Next();
+            return Value::Nil();
+        }
 
         case LBRACKET: {
             Eat(LBRACKET);

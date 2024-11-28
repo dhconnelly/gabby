@@ -21,7 +21,7 @@ void ThreadPool::ThreadRun(int id) {
     while (true) {
         std::unique_lock guard(mux_);
         cnd_.wait(guard, [this] { return done_ || !tasks_.empty(); });
-        if (done_) return;
+        if (done_) break;
         LOG(DEBUG) << std::format("thread {} picking up task", id);
         auto task = tasks_.front();
         tasks_.pop_front();

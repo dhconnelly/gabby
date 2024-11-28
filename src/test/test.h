@@ -42,6 +42,9 @@ public:
         } catch (const std::exception& e) {
             error(std::format("caught exception: {}", e.what()));
             fail();
+        } catch (...) {
+            error("caught unknown exception");
+            fail();
         }
         if (failures_ == 0) {
             log(std::format("ok", suite(), testcase()));
@@ -97,15 +100,8 @@ extern std::vector<TestCase*>* kTestCases;
         fail();                                  \
     }
 
-bool equal(std::string_view a, std::string_view b);
-
-template <typename T, typename U>
-bool equal(const T& t, const U& u) {
-    return t == u;
-}
-
 #define EXPECT_EQ(got, want)                              \
-    if (!equal((got), (want))) {                          \
+    if ((got) != (want)) {                                \
         error(std::format("FAIL: {} != {}", #want, #got), \
               std::source_location::current());           \
         fail();                                           \

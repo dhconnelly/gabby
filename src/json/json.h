@@ -2,6 +2,7 @@
 #define GABBY_JSON_JSON_H_
 
 #include <cstdio>
+#include <format>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -17,6 +18,7 @@ enum class Type {
     STR,
     ARRAY,
     OBJ,
+    NIL,
 };
 
 std::ostream& operator<<(std::ostream& os, Type type);
@@ -43,6 +45,7 @@ class BooleanValue;
 class StringValue;
 class ArrayValue;
 class ObjectValue;
+class NilValue;
 
 using ValuePtr = std::shared_ptr<Value>;
 
@@ -57,23 +60,22 @@ public:
     static ValuePtr Number(double value);
     static ValuePtr Array(std::vector<ValuePtr> values);
     static ValuePtr Object(std::unordered_map<std::string, ValuePtr> values);
+    static ValuePtr Nil();
 
     // downcasts. specific type must implement their own
-    virtual const NumberValue& as_number() const {
-        throw TypeError(Type::NUM, type());
-    }
-    virtual const BooleanValue& as_boolean() const {
-        throw TypeError(Type::BOOL, type());
-    }
-    virtual const ObjectValue& as_object() const {
-        throw TypeError(Type::OBJ, type());
-    }
-    virtual const StringValue& as_string() const {
-        throw TypeError(Type::STR, type());
-    }
-    virtual const ArrayValue& as_array() const {
-        throw TypeError(Type::ARRAY, type());
-    }
+    virtual NumberValue& as_number() { throw TypeError(Type::NUM, type()); }
+    virtual BooleanValue& as_boolean() { throw TypeError(Type::BOOL, type()); }
+    virtual ObjectValue& as_object() { throw TypeError(Type::OBJ, type()); }
+    virtual StringValue& as_string() { throw TypeError(Type::STR, type()); }
+    virtual ArrayValue& as_array() { throw TypeError(Type::ARRAY, type()); }
+    virtual NilValue& as_nil() { throw TypeError(Type::NIL, type()); }
+
+    const NumberValue& as_number() const { return as_number(); }
+    const BooleanValue& as_boolean() const { return as_boolean(); }
+    const ObjectValue& as_object() const { return as_object(); }
+    const StringValue& as_string() const { return as_string(); }
+    const ArrayValue& as_array() const { return as_array(); }
+    const NilValue& as_nil() const { return as_nil(); }
 
     // specific types must override their equals function
     virtual bool eq(const Value& other) const = 0;
@@ -82,6 +84,7 @@ public:
     virtual bool eq(const StringValue&) const { return false; }
     virtual bool eq(const ArrayValue&) const { return false; }
     virtual bool eq(const ObjectValue&) const { return false; }
+    virtual bool eq(const NilValue&) const { return false; }
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& value);
@@ -92,6 +95,7 @@ template <typename T, Type typeVal>
 class AbstractValue : public Value {
 public:
     Type type() const override { return typeVal; }
+    T& get() { return value_; }
     const T& get() const { return value_; }
 
 protected:
@@ -101,8 +105,19 @@ private:
     T value_;
 };
 
-// TODO: I think all of this can be lifted into the template.
-// Try it after implementing parsing.
+class NilValue : public Value {
+public:
+    Type type() const override { return Type::NIL; }
+    bool eq(const Value& other) const override { return other.eq(*this); }
+    bool eq(const NilValue& other) const override { return true; }
+    NilValue& as_nil() override { return *this; }
+    std::ostream& print(std::ostream& os) const override {
+        return os << "null";
+    }
+
+protected:
+    friend class Value;
+};
 
 class BooleanValue : public AbstractValue<bool, Type::BOOL> {
 public:
@@ -110,7 +125,7 @@ public:
     bool eq(const BooleanValue& other) const override {
         return get() == other.get();
     }
-    const BooleanValue& as_boolean() const override { return *this; }
+    BooleanValue& as_boolean() override { return *this; }
     std::ostream& print(std::ostream& os) const override {
         return os << (get() ? "true" : "false");
     }
@@ -127,7 +142,7 @@ public:
     bool eq(const NumberValue& other) const override {
         return get() == other.get();
     }
-    const NumberValue& as_number() const override { return *this; }
+    NumberValue& as_number() override { return *this; }
     std::ostream& print(std::ostream& os) const override { return os << get(); }
 
 protected:
@@ -141,7 +156,7 @@ public:
     bool eq(const StringValue& other) const override {
         return get() == other.get();
     }
-    const StringValue& as_string() const override { return *this; }
+    StringValue& as_string() override { return *this; }
     std::ostream& print(std::ostream& os) const override {
         return os << '"' << get() << '"';
     }
@@ -161,7 +176,7 @@ public:
         }
         return true;
     }
-    const ArrayValue& as_array() const override { return *this; }
+    ArrayValue& as_array() override { return *this; }
     std::ostream& print(std::ostream& os) const override {
         os << "[";
         bool first = true;
@@ -171,6 +186,13 @@ public:
             first = false;
         }
         return os << "]";
+    }
+
+    ValuePtr operator[](size_t i) {
+        if (i >= get().size()) {
+            throw std::out_of_range(std::format("out of range: {}", i));
+        }
+        return get()[i];
     }
 
 protected:
@@ -191,7 +213,7 @@ public:
         }
         return true;
     }
-    const ObjectValue& as_object() const override { return *this; }
+    ObjectValue& as_object() override { return *this; }
     std::ostream& print(std::ostream& os) const override {
         os << "{";
         bool first = true;
@@ -202,6 +224,14 @@ public:
         }
         return os << "}";
     }
+
+    std::optional<ValuePtr> Lookup(const std::string& key) const {
+        auto it = get().find(key);
+        if (it == get().end()) return {};
+        return it->second;
+    }
+
+    ValuePtr operator[](const std::string& key) { return get()[key]; }
 
 protected:
     ObjectValue(std::unordered_map<std::string, ValuePtr> values)

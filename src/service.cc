@@ -37,6 +37,36 @@ std::string ReadAll(FILE* stream) {
     if (n < 0) throw SystemError(errno);
     return data;
 }
+
+static json::ValuePtr kStubResponse = json::Parse(R"(
+    {
+        "id": "gabby-completion-123",
+        "object": "chat.completion",
+        "created": 1111111111,
+        "model": "gabby-model",
+        "system_fingerprint": "fp_1111111111",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "\n\nhey this is gabby"
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+        }],
+        "usage": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 1,
+            "completion_tokens_details": {
+                "reasoning_tokens": 1,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+            }
+        }
+    }
+)");
+
 }  // namespace
 
 http::Handler InferenceService::ChatCompletions() {
@@ -66,34 +96,7 @@ http::Handler InferenceService::ChatCompletions() {
         LOG(DEBUG) << "read json request: " << *request;
 
         resp.WriteStatus(http::StatusCode::OK);
-        resp.WriteData(R"(
-            {
-                "id": "gabby-completion-123",
-                "object": "chat.completion",
-                "created": 1111111111,
-                "model": "gabby-model",
-                "system_fingerprint": "fp_1111111111",
-                "choices": [{
-                    "index": 0,
-                    "message": {
-                    "role": "assistant",
-                    "content": "\n\nYo",
-                    },
-                    "logprobs": null,
-                    "finish_reason": "stop"
-                }],
-                "usage": {
-                    "prompt_tokens": 1,
-                    "completion_tokens": 1,
-                    "total_tokens": 1,
-                    "completion_tokens_details": {
-                        "reasoning_tokens": 1,
-                        "accepted_prediction_tokens": 0,
-                        "rejected_prediction_tokens": 0
-                    }
-                }
-            }
-        )");
+        resp.WriteData(to_string(*kStubResponse));
     };
 }
 

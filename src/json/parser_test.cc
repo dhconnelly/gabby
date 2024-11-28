@@ -6,11 +6,15 @@
 namespace gabby {
 namespace json {
 
+TEST(JSON, ParseNull) { EXPECT_EQ(*Value::Nil(), *Parse("null")); }
+
 TEST(JSON, ParseNumber) {
     EXPECT_EQ(*Value::Number(0), *Parse("0"));
     EXPECT_EQ(*Value::Number(17), *Parse("17"));
     EXPECT_FLOAT_EQ(Value::Number(-32.4)->as_number().get(),
                     Parse("-32.4")->as_number().get(), 0.001);
+    EXPECT_FLOAT_EQ(Value::Number(1e-17)->as_number().get(),
+                    Parse("1e-17")->as_number().get(), 0.000000000001);
 }
 
 TEST(JSON, ParseBoolean) {

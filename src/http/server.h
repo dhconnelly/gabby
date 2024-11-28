@@ -29,9 +29,10 @@ class HttpServer {
 public:
     // |handler| must be thread-safe
     HttpServer(const ServerConfig& config, Handler handler);
+    ~HttpServer();
 
-    int port() { return port_; }
-    int total_threads() { return config_.worker_threads + 1; }
+    int port() const { return port_; }
+    int total_threads() const { return config_.worker_threads + 1; }
 
     void Start();
     void Wait();

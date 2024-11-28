@@ -21,6 +21,8 @@ public:
     void Wait();
     void Stop();
 
+    int port() const { return server_.port(); }
+
 private:
     http::Handler HealthCheck();
     http::Handler ChatCompletions();

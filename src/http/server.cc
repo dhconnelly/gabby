@@ -251,6 +251,13 @@ HttpServer::HttpServer(const ServerConfig& config, Handler handler)
       running_(0),
       run_(false) {}
 
+HttpServer::~HttpServer() {
+    if (running_) {
+        Stop();
+        Wait();
+    }
+}
+
 void HttpServer::Start() {
     // TODO: add state variable and enforce state transitions
     LOG(DEBUG) << "starting server...";
@@ -263,6 +270,7 @@ void HttpServer::Start() {
 }
 
 void HttpServer::Stop() {
+    if (!running_) return;
     LOG(DEBUG) << "sending stop notification...";
     run_ = false;
     char done = 1;
@@ -272,6 +280,7 @@ void HttpServer::Stop() {
 }
 
 void HttpServer::Wait() {
+    if (!pool_) return;
     LOG(DEBUG) << "waiting on all threads to exit...";
     listener_.join();
     pool_.reset();
@@ -318,12 +327,6 @@ void HttpServer::Listen() {
 
     running_ = false;
     running_.notify_one();
-}
-
-void HttpServer::WorkerAccept(int id) {
-    LOG(DEBUG) << "worker " << id << " started";
-    run_.wait(true);
-    LOG(DEBUG) << "worker " << id << " exiting";
 }
 
 void HttpServer::Accept() {
@@ -375,7 +378,6 @@ void HttpServer::Handle(Client&& client) {
                   << req.path << " HTTP/1.1 " << int(*resp.status()) << " "
                   << resp.bytes_written() << " " << user_agent;
     } catch (const HttpException& e) {
-        LOG(ERROR) << e.what();
         MustSend(resp, e.status());
     } catch (const std::exception& e) {
         LOG(ERROR) << e.what();

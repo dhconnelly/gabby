@@ -18,6 +18,7 @@ std::ostream& operator<<(std::ostream& os, Type type) {
         case Type::STR: return os << "BOOL";
         case Type::ARRAY: return os << "ARRAY";
         case Type::OBJ: return os << "OBJ";
+        case Type::NIL: return os << "NIL";
     }
     assert(false);
 }
@@ -59,6 +60,7 @@ ValuePtr Value::Array(std::vector<ValuePtr> values) {
 ValuePtr Value::Object(std::unordered_map<std::string, ValuePtr> values) {
     return std::shared_ptr<Value>(new ObjectValue(values));
 }
+ValuePtr Value::Nil() { return std::shared_ptr<Value>(new NilValue); }
 
 }  // namespace json
 }  // namespace gabby
