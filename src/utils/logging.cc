@@ -1,5 +1,6 @@
 #include "utils/logging.h"
 
+#include <cassert>
 #include <chrono>
 #include <cstring>
 #include <format>
@@ -19,6 +20,7 @@ std::ostream &operator<<(std::ostream &os, LogLevel level) {
         case LogLevel::DEBUG: return os << "DEBUG";
         case LogLevel::WARN: return os << "WARN";
     }
+    assert(false);
 }
 
 const char *basename(const char *filename) {

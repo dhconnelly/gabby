@@ -108,7 +108,7 @@ extern std::vector<TestCase*>* kTestCases;
     }
 
 #define EXPECT_FLOAT_EQ(got, want, eps)                   \
-    if (abs((want) - (got) > eps)) {                      \
+    if (abs((want) - (got)) > eps) {                      \
         error(std::format("FAIL: {} != {}", #want, #got), \
               std::source_location::current());           \
         fail();                                           \
