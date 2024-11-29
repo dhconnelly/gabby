@@ -46,7 +46,6 @@ private:
     };
 
     void Listen();
-    void WorkerAccept(int id);
     void Accept();
     void Handle(Client&& sock);
 

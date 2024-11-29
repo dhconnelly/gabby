@@ -1,7 +1,9 @@
 #include "service.h"
 
 #include <cstdio>
+#include <format>
 #include <string>
+#include <unordered_set>
 
 #include "http/router.h"
 #include "json/json.h"
@@ -67,36 +69,58 @@ json::ValuePtr StubResponse() {
 )");
 }
 
+const std::string& GetHeader(const http::Request& req, const std::string& key) {
+    auto it = req.headers.find(key);
+    if (it == req.headers.end()) {
+        throw http::BadRequestException("missing header: " + key);
+    }
+    return it->second;
+}
+
+int GetIntHeader(const http::Request& req, const std::string& key) {
+    const std::string& value = GetHeader(req, key);
+    try {
+        return std::stoi(value);
+    } catch (...) {
+        throw http::BadRequestException(
+            std::format("invalid value for header {}: {}", key, value));
+    }
+}
+
+json::ValuePtr ParseJson(FILE* stream, int size) {
+    try {
+        return json::Parse(stream, size);
+    } catch (json::JSONError& e) {
+        throw http::BadRequestException(std::format("bad json: {}", e.what()));
+    }
+}
+
+void CheckMethod(const std::unordered_set<http::Method>& supported,
+                 http::Method method) {
+    if (!supported.contains(method)) {
+        throw http::NotFoundError();
+    }
+}
+
 }  // namespace
 
 http::Handler InferenceService::ChatCompletions() {
     return [](http::Request& req, http::ResponseWriter& resp) {
-        if (req.method != http::Method::POST) {
-            throw http::NotFoundError();
-        }
+        // TODO: lift this into http::Router
+        CheckMethod({http::Method::POST}, req.method);
 
-        auto content_length_it = req.headers.find("Content-Length");
-        if (content_length_it == req.headers.end()) {
-            throw http::BadRequestException("missing Content-Length");
-        }
-        int content_length;
-        try {
-            content_length = std::stoi(content_length_it->second);
-        } catch (...) {
-            throw http::BadRequestException("bad Content-Length");
-        }
+        // TODO: read the full body when content-length is specified,
+        // even if we don't use it, and lift this into http::Server
+        int content_length = GetIntHeader(req, "Content-Length");
 
-        LOG(DEBUG) << "reading " << content_length << " bytes as json...";
-        json::ValuePtr request;
-        try {
-            request = json::Parse(req.stream, content_length);
-        } catch (json::JSONError& e) {
-            throw http::BadRequestException("bad json");
-        }
-        LOG(DEBUG) << "read json request: " << *request;
+        auto json_req = ParseJson(req.stream, content_length);
+        LOG(DEBUG) << "completion request: " << *json_req;
+
+        auto json_resp = StubResponse();
+        LOG(DEBUG) << "completion response: " << *json_resp;
 
         resp.WriteStatus(http::StatusCode::OK);
-        resp.WriteData(to_string(*StubResponse()));
+        resp.WriteData(to_string(*json_resp));
     };
 }
 
