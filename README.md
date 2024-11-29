@@ -14,6 +14,12 @@ an inference server from scratch in c++
 - [ ] profiling and optimization
 - [ ] docker image
 
+other improvements:
+
+- [ ] backpressure w/http 529
+- [ ] streaming w/server-side events
+- [ ] add /statusz with metrics etc.
+
 ## prerequisites
 
 - x86_64
