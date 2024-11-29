@@ -35,7 +35,7 @@ other improvements:
 cmake -S . -B build     # prepare build
 cmake --build build     # build everything
 ./build/gabby_test      # run tests
-./build/gabby --info --port 8080 --workers 7 &
+./build/gabby --info --port 8080 --workers 7
 ```
 
 this will start the server running on localhost at port 8080 with
@@ -56,3 +56,5 @@ curl localhost:8080/v1/chat/completions -d '{
     }]
 }'
 ```
+
+or use an openai-compatible chat app (like boltai for mac).
