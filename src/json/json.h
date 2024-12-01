@@ -49,6 +49,11 @@ class NilValue;
 
 using ValuePtr = std::shared_ptr<Value>;
 
+// TODO: clean this up a lot, it's a mess
+// 1. the concrete subclasses should behave like std types
+// 2. revisit memory management
+// 3. eliminate the AbstractValue layer
+// 4. smaller public interface
 class Value {
 public:
     virtual ~Value() {}

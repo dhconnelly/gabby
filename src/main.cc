@@ -1,5 +1,7 @@
 #include <csignal>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <string_view>
@@ -9,6 +11,10 @@
 #include "utils/logging.h"
 
 namespace gabby {
+namespace {
+
+constexpr std::string_view kUserHomeRelativeModelDir =
+    ".llama/checkpoints/Llama3.2-1B-Instruct";
 
 [[noreturn]] void Die(const std::string_view message) {
     std::cerr << message << std::endl;
@@ -18,19 +24,27 @@ namespace gabby {
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     return os << "{ server_config: " << config.server_config  //
               << ", log_level: " << config.log_level          //
+              << ", model_dir: " << config.model_dir          //
               << " }";
 }
 
-Config kDefaultConfig{
-    .log_level = LogLevel::OFF,
-    .server_config =
-        http::ServerConfig{
-            .port = 8080,
-            .read_timeout_millis = 5'000,
-            .write_timeout_millis = 10'000,
-            .worker_threads = std::thread::hardware_concurrency() - 1,
-        },
-};
+Config DefaultConfig() {
+    const char* home = getenv("HOME");
+    if (home == nullptr) Die("env var HOME is unset");
+    std::filesystem::path model_dir(home);
+    model_dir.append(kUserHomeRelativeModelDir);
+    return Config{
+        .log_level = LogLevel::OFF,
+        .server_config =
+            http::ServerConfig{
+                .port = 8080,
+                .read_timeout_millis = 5'000,
+                .write_timeout_millis = 10'000,
+                .worker_threads = std::thread::hardware_concurrency() - 1,
+            },
+        .model_dir = model_dir,
+    };
+}
 
 template <typename IntTypeT>
 bool ParseIntFlag(int argc, char* argv[], std::string_view flag, int* argi,
@@ -43,7 +57,7 @@ bool ParseIntFlag(int argc, char* argv[], std::string_view flag, int* argi,
 }
 
 Config ParseArgs(int argc, char* argv[]) {
-    Config config = kDefaultConfig;
+    Config config = DefaultConfig();
     for (int i = 1; i < argc; i++) {
         if (ParseIntFlag(argc, argv, "--port", &i,
                          &config.server_config.port)) {
@@ -93,6 +107,7 @@ void Run(int argc, char* argv[]) {
     LOG(INFO) << "exiting";
 }
 
+}  // namespace
 }  // namespace gabby
 
 int main(int argc, char* argv[]) { gabby::Run(argc, argv); }
