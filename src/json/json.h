@@ -1,6 +1,7 @@
 #ifndef GABBY_JSON_JSON_H_
 #define GABBY_JSON_JSON_H_
 
+#include <cassert>
 #include <cstdio>
 #include <format>
 #include <iostream>
@@ -37,6 +38,12 @@ public:
 class ParsingError : public JSONError {
 public:
     explicit ParsingError(const std::string& s) : JSONError(s) {}
+};
+
+class KeyNotFoundError : public JSONError {
+public:
+    explicit KeyNotFoundError(std::string key)
+        : JSONError(std::format("key not present in object: {}", key)) {}
 };
 
 class Value;
@@ -166,6 +173,8 @@ public:
         return os << '"' << get() << '"';
     }
 
+    const std::string& operator*() const { return get(); }
+
 protected:
     using AbstractValue::AbstractValue;
     friend class Value;
@@ -193,12 +202,49 @@ public:
         return os << "]";
     }
 
-    ValuePtr operator[](size_t i) {
+    void push_back(ValuePtr value) { get().push_back(value); }
+
+    ValuePtr& operator[](size_t i) {
         if (i >= get().size()) {
             throw std::out_of_range(std::format("out of range: {}", i));
         }
         return get()[i];
     }
+
+    class iterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = ValuePtr;
+        using difference_type = std::ptrdiff_t;
+        using pointer = ValuePtr*;
+        using reference = ValuePtr&;
+
+        reference operator*() { return (*array_)[index_]; }
+        pointer operator->() { return &(*array_)[index_]; }
+        iterator& operator++() {
+            ++index_;
+            return *this;
+        }
+        iterator operator++(int by) {
+            auto old = *this;
+            index_ += by;
+            return old;
+        }
+
+        bool operator==(const iterator& rhs) {
+            return array_ == rhs.array_ && index_ == rhs.index_;
+        }
+        bool operator!=(const iterator& rhs) { return !(*this == rhs); }
+
+    private:
+        iterator(int index, ArrayValue* array) : index_(index), array_(array) {}
+        friend class ArrayValue;
+        int index_;
+        ArrayValue* array_;
+    };
+
+    iterator begin() { return iterator(0, this); }
+    iterator end() { return iterator(get().size(), this); }
 
 protected:
     ArrayValue(std::vector<ValuePtr> values) : AbstractValue(values) {}
@@ -230,13 +276,12 @@ public:
         return os << "}";
     }
 
-    std::optional<ValuePtr> Lookup(const std::string& key) const {
-        auto it = get().find(key);
-        if (it == get().end()) return {};
-        return it->second;
+    ValuePtr at(const std::string& key) {
+        if (!get().contains(key)) {
+            throw json::KeyNotFoundError(key);
+        }
+        return get()[key];
     }
-
-    ValuePtr operator[](const std::string& key) { return get()[key]; }
 
 protected:
     ObjectValue(std::unordered_map<std::string, ValuePtr> values)

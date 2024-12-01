@@ -12,20 +12,6 @@
 
 namespace gabby {
 
-InferenceService::InferenceService(Config config)
-    : config_(config),
-      server_(config_.server_config,
-              http::Router::builder()
-                  .route("/healthz", HealthCheck())
-                  .route("/v1/chat/completions", ChatCompletions())
-                  .build()) {}
-
-http::Handler InferenceService::HealthCheck() {
-    return [](http::Request& req, http::ResponseWriter& resp) {
-        resp.WriteStatus(http::StatusCode::OK);
-    };
-};
-
 namespace {
 std::string ReadAll(FILE* stream) {
     std::string data;
@@ -36,37 +22,6 @@ std::string ReadAll(FILE* stream) {
     }
     if (n < 0) throw SystemError(errno);
     return data;
-}
-
-json::ValuePtr StubResponse() {
-    return json::Parse(R"(
-    {
-        "id": "gabby-completion-123",
-        "object": "chat.completion",
-        "created": 1111111111,
-        "model": "gabby-model",
-        "system_fingerprint": "fp_1111111111",
-        "choices": [{
-            "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": "\n\nhey this is gabby"
-            },
-            "logprobs": null,
-            "finish_reason": "stop"
-        }],
-        "usage": {
-            "prompt_tokens": 1,
-            "completion_tokens": 1,
-            "total_tokens": 1,
-            "completion_tokens_details": {
-                "reasoning_tokens": 1,
-                "accepted_prediction_tokens": 0,
-                "rejected_prediction_tokens": 0
-            }
-        }
-    }
-)");
 }
 
 const std::string& GetHeader(const http::Request& req, const std::string& key) {
@@ -87,14 +42,6 @@ int GetIntHeader(const http::Request& req, const std::string& key) {
     }
 }
 
-json::ValuePtr ParseJson(FILE* stream, int size) {
-    try {
-        return json::Parse(stream, size);
-    } catch (json::JSONError& e) {
-        throw http::BadRequestException(std::format("bad json: {}", e.what()));
-    }
-}
-
 void CheckMethod(const std::unordered_set<http::Method>& supported,
                  http::Method method) {
     if (!supported.contains(method)) {
@@ -102,10 +49,91 @@ void CheckMethod(const std::unordered_set<http::Method>& supported,
     }
 }
 
+inference::Message FindMessageForRole(const std::string_view role,
+                                      json::ArrayValue& msgs) {
+    auto it =
+        std::find_if(msgs.begin(), msgs.end(), [role](json::ValuePtr val) {
+            return *val->as_object().at("role")->as_string() == role;
+        });
+    if (it == msgs.end()) {
+        throw http::BadRequestException(std::format("role {} not found", role));
+    }
+    auto msg = (*it)->as_object();
+    return inference::Message{
+        .role = *msg.at("role")->as_string(),
+        .content = *msg.at("content")->as_string(),
+    };
+}
+
+inference::Request ExtractRequest(json::ValuePtr json_request) {
+    auto msgs = json_request->as_object().at("messages")->as_array();
+    inference::Message system = FindMessageForRole("system", msgs);
+    inference::Message user = FindMessageForRole("user", msgs);
+    return inference::Request{
+        .system_message = system,
+        .user_message = user,
+    };
+}
+
+json::ValuePtr StubResponse() {
+    return json::Parse(R"(
+    {
+        "id": "gabby-completion-123",
+        "object": "chat.completion",
+        "created": 1111111111,
+        "model": "gabby-model",
+        "system_fingerprint": "fp_1111111111",
+        "choices": [
+        ],
+        "usage": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 1,
+            "completion_tokens_details": {
+                "reasoning_tokens": 1,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+            }
+        }
+    }
+)");
+}
+
+json::ValuePtr MakeResponse(const inference::Message& answer) {
+    auto response = StubResponse();
+    auto choice = json::Value::Object({
+        {"index", json::Value::Number(0)},
+        {"logprobs", json::Value::Nil()},
+        {"finish_reason", json::Value::String("stop")},
+        {"message", json::Value::Object({
+                        {"role", json::Value::String(answer.role)},
+                        {"content", json::Value::String(answer.content)},
+                    })},
+    });
+    response->as_object().at("choices")->as_array().push_back(choice);
+    return response;
+}
+
 }  // namespace
 
-http::Handler InferenceService::ChatCompletions() {
+InferenceService::InferenceService(Config config)
+    : config_(config),
+      server_(std::make_unique<http::HttpServer>(config_.server_config)),
+      generator_(inference::Generator::LoadFromDirectory(config.model_dir)) {}
+
+InferenceService::InferenceService(
+    std::unique_ptr<http::HttpServer> server,
+    std::unique_ptr<inference::Generator> generator)
+    : server_(std::move(server)), generator_(std::move(generator)) {}
+
+http::Handler InferenceService::HealthCheck() {
     return [](http::Request& req, http::ResponseWriter& resp) {
+        resp.WriteStatus(http::StatusCode::OK);
+    };
+};
+
+http::Handler InferenceService::ChatCompletions() {
+    return [this](http::Request& req, http::ResponseWriter& resp) {
         // TODO: lift this into http::Router
         CheckMethod({http::Method::POST}, req.method);
 
@@ -113,10 +141,12 @@ http::Handler InferenceService::ChatCompletions() {
         // even if we don't use it, and lift this into http::Server
         int content_length = GetIntHeader(req, "Content-Length");
 
-        auto json_req = ParseJson(req.stream, content_length);
+        auto json_req = json::Parse(req.stream, content_length);
         LOG(DEBUG) << "completion request: " << *json_req;
 
-        auto json_resp = StubResponse();
+        inference::Request question = ExtractRequest(json_req);
+        inference::Message answer = generator_->Generate(question);
+        auto json_resp = MakeResponse(answer);
         LOG(DEBUG) << "completion response: " << *json_resp;
 
         resp.WriteStatus(http::StatusCode::OK);
@@ -126,17 +156,20 @@ http::Handler InferenceService::ChatCompletions() {
 
 void InferenceService::Start() {
     //
-    server_.Start();
+    server_->Start(http::Router::builder()
+                       .route("/healthz", HealthCheck())
+                       .route("/v1/chat/completions", ChatCompletions())
+                       .build());
 }
 
 void InferenceService::Wait() {
     //
-    server_.Wait();
+    server_->Wait();
 }
 
 void InferenceService::Stop() {
     //
-    server_.Stop();
+    server_->Stop();
 }
 
 }  // namespace gabby

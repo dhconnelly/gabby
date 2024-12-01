@@ -242,11 +242,10 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
               << " }";
 }
 
-HttpServer::HttpServer(const ServerConfig& config, Handler handler)
+HttpServer::HttpServer(const ServerConfig& config)
     : config_(config),
       port_(config.port),
       sock_(ServerSocket()),
-      handler_(handler),
       pipe_(MakePipe()),
       running_(0),
       run_(false) {}
@@ -258,7 +257,9 @@ HttpServer::~HttpServer() {
     }
 }
 
-void HttpServer::Start() {
+void HttpServer::Start(Handler handler) {
+    handler_ = handler;
+
     // TODO: add state variable and enforce state transitions
     LOG(DEBUG) << "starting server...";
     run_ = true;
@@ -377,6 +378,8 @@ void HttpServer::Handle(Client&& client) {
         LOG(INFO) << client.addr << " - " << to_string(req.method) << " "
                   << req.path << " HTTP/1.1 " << int(*resp.status()) << " "
                   << resp.bytes_written() << " " << user_agent;
+    } catch (const json::JSONError& e) {
+        MustSend(resp, StatusCode::BadRequest);
     } catch (const HttpException& e) {
         MustSend(resp, e.status());
     } catch (const std::exception& e) {

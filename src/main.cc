@@ -13,8 +13,7 @@
 namespace gabby {
 namespace {
 
-constexpr std::string_view kUserHomeRelativeModelDir =
-    ".llama/checkpoints/Llama3.2-1B-Instruct";
+namespace fs = std::filesystem;
 
 [[noreturn]] void Die(const std::string_view message) {
     std::cerr << message << std::endl;
@@ -28,11 +27,35 @@ std::ostream& operator<<(std::ostream& os, const Config& config) {
               << " }";
 }
 
-Config DefaultConfig() {
+constexpr std::string_view kUserRelativeSnapshotDir =
+    ".cache/huggingface/hub/models--meta-llama--Llama-3.2-1B-Instruct/"
+    "snapshots";
+
+fs::path FindModelDir() {
     const char* home = getenv("HOME");
-    if (home == nullptr) Die("env var HOME is unset");
-    std::filesystem::path model_dir(home);
-    model_dir.append(kUserHomeRelativeModelDir);
+    if (home == nullptr) {
+        Die("env var HOME is unset");
+    }
+
+    fs::path snapshots_dir(home);
+    snapshots_dir /= kUserRelativeSnapshotDir;
+    fs::directory_iterator contents;
+    try {
+        contents = fs::directory_iterator(snapshots_dir);
+    } catch (fs::filesystem_error& err) {
+        Die(std::format("can't access model dir at {}: {}",
+                        snapshots_dir.string(), err.what()));
+    }
+
+    auto it = fs::begin(contents);
+    if (it == fs::end(contents)) {
+        Die(std::format("no snapshots found in {}", snapshots_dir.string()));
+    }
+
+    return *it;
+}
+
+Config DefaultConfig() {
     return Config{
         .log_level = LogLevel::OFF,
         .server_config =
@@ -42,7 +65,7 @@ Config DefaultConfig() {
                 .write_timeout_millis = 10'000,
                 .worker_threads = std::thread::hardware_concurrency() - 1,
             },
-        .model_dir = model_dir,
+        .model_dir = "",
     };
 }
 
@@ -56,7 +79,17 @@ bool ParseIntFlag(int argc, char* argv[], std::string_view flag, int* argi,
     return true;
 }
 
-Config ParseArgs(int argc, char* argv[]) {
+bool ParseStrFlag(int argc, char* argv[], std::string_view flag, int* argi,
+                  std::string* val) {
+    // TODO: unify this with ParseIntFlag
+    if (argv[*argi] != flag) return false;
+    if (*argi + 1 == argc) Die(std::format("missing argument for {}", flag));
+    *val = argv[*argi + 1];
+    (*argi)++;
+    return true;
+}
+
+Config ParseConfig(int argc, char* argv[]) {
     Config config = DefaultConfig();
     for (int i = 1; i < argc; i++) {
         if (ParseIntFlag(argc, argv, "--port", &i,
@@ -73,9 +106,14 @@ Config ParseArgs(int argc, char* argv[]) {
             config.log_level = LogLevel::DEBUG;
         } else if (ParseIntFlag(argc, argv, "--workers", &i,
                                 &config.server_config.worker_threads)) {
+        } else if (ParseStrFlag(argc, argv, "--model-dir", &i,
+                                &config.model_dir)) {
         } else {
             Die(std::format("invalid argument: {}", argv[i]));
         }
+    }
+    if (config.model_dir.empty()) {
+        config.model_dir = FindModelDir();
     }
     return config;
 }
@@ -96,7 +134,7 @@ void shutdown(int signal) {
 }
 
 void Run(int argc, char* argv[]) {
-    auto config = ParseArgs(argc, argv);
+    auto config = ParseConfig(argc, argv);
     SetGlobalLogLevel(config.log_level);
     LOG(INFO) << "server config: " << config;
     service = new InferenceService(config);

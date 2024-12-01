@@ -29,8 +29,8 @@ constexpr ServerConfig kTestConfig{
 
 class TestServer {
 public:
-    TestServer(ServerConfig config, Handler h) : server_(config, h) {
-        server_.Start();
+    TestServer(ServerConfig config, Handler h) : server_(config) {
+        server_.Start(h);
     }
     TestServer(Handler h) : TestServer(kTestConfig, h) {}
 

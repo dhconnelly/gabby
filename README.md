@@ -28,12 +28,14 @@ other improvements:
 - cmake 3.22
 - nvidia gpu with at least 3gb vram
 - nvidia cuda toolkit: https://developer.nvidia.com/cuda-toolkit
-- Llama3.2-1B-Instruct weights from Meta: 
-    + install the `llama` tool ([guide](https://llama-stack.readthedocs.io/en/latest/references/llama_cli_reference/index.html)): `pip install llama-stack`
-    + fill out the access form [here](https://www.llama.com/llama-downloads/) and get your private download url
-    + run `llama download --source meta --model-id Llama3.2-1B-Instruct --meta-url 'META_URL'` with `META_URL` replaced by your private download url you got in the previous step
-    + this should download the model parameters and weights to `$HOME/.llama/checkpoints/Llama3.2-1B-Instruct/`. `gabby` will assume this is where the weights are located; if you have a different location, specify this with the env var `MODEL_DIR`.
-    + note: this isn't using quantization at the moment :)
+- Llama3.2-1B-Instruct SafeTensors from Hugging Face:
+    + Create a Hugging Face account at https://huggingface.co/
+    + Agree to the license agreement at https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct
+    + Wait for approval; check status at https://huggingface.co/settings/gated-repos
+    + Install the Hugging Face CLI: `pip install -U "huggingface_hub[cli]"`
+    + Log in via the CLI: `huggingface-cli login`. You'll have to paste a token (or create one with at least read access if it doesn't exist) at https://huggingface.co/settings/tokens
+    + Download the repository: `huggingface-cli download meta-llama/Llama-3.2-1B-Instruct`
+    + We assume the files are downloaded and stored using the default Hugging Face cache, i.e. at `$HOME/.cache/huggingface/hub/models--meta-llama--Llama-3.2-1B-Instruct/snapshots/$SHA/`. The server will look for this directory (using the first `SHA` encountered) at startup; if you want to override this path, use the flag `--model-dir`.
 
 ## getting started
 

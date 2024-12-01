@@ -27,14 +27,14 @@ using OwnedFd = std::unique_ptr<int, void (*)(int*)>;
 
 class HttpServer {
 public:
-    // |handler| must be thread-safe
-    HttpServer(const ServerConfig& config, Handler handler);
+    explicit HttpServer(const ServerConfig& config);
     ~HttpServer();
 
     int port() const { return port_; }
     int total_threads() const { return config_.worker_threads + 1; }
 
-    void Start();
+    // |handler| must be thread-safe
+    void Start(Handler handler);
     void Wait();
     void Stop();
 
