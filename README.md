@@ -2,6 +2,8 @@
 
 an inference server from scratch in c++
 
+currently under active development, see status below
+
 ## status
 
 - [x] multithreaded web server
@@ -44,11 +46,11 @@ other improvements:
 cmake -S . -B build     # prepare build
 cmake --build build     # build everything
 ./build/gabby_test      # run tests
-./build/gabby --info --port 8080 --workers 7
+./build/gabby --debug --port 8080 --workers 7
 ```
 
 this will start the server running on localhost at port 8080 with
-seven worker threads and INFO level logging. note that it supports
+seven worker threads and DEBUG level logging. note that it supports
 graceful shutdown via SIGINT and SIGTERM.
 
 while it's runnning, you can call the chat completion api:
@@ -67,3 +69,7 @@ curl localhost:8080/v1/chat/completions -d '{
 ```
 
 or use an openai-compatible chat app (like boltai for mac).
+
+## license
+
+MIT
