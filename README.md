@@ -8,7 +8,7 @@ an inference server from scratch in c++
 - [x] test framework
 - [x] json parser
 - [x] openai-compatible chat completion api
-- [ ] model and weights loader
+- [x] parse safetensors, params, tokenizer configs
 - [ ] tokenizer
 - [ ] llama3.2 in cuda
 - [ ] profiling and optimization
@@ -19,6 +19,7 @@ other improvements:
 - [ ] backpressure w/http 529
 - [ ] streaming w/server-side events
 - [ ] add /statusz with metrics etc.
+- [ ] revisit concurrency
 
 ## prerequisites
 
