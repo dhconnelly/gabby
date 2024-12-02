@@ -1,6 +1,6 @@
 # gabby
 
-an inference server from scratch in c++
+a zero-dependency llama 3 inference server from scratch in c++
 
 currently under active development, see status below
 
