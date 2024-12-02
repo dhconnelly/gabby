@@ -1,8 +1,10 @@
 # gabby
 
-a zero-dependency llama 3 inference server from scratch in c++
+a zero-dependency llama 3.2 inference server from scratch in c++ and cuda
 
 currently under active development, see status below
+
+my december 2024 project, i've retired from advent of code :)
 
 ## status
 
