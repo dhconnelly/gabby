@@ -2,6 +2,7 @@
 #define GABBY_JSON_PARSER_H_
 
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -66,6 +67,7 @@ private:
     std::optional<Token> lookahead_;
 };
 
+ValuePtr ParseFile(const std::filesystem::path& path);
 ValuePtr Parse(FILE* f, int size);
 ValuePtr Parse(const std::string& s);
 

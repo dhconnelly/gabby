@@ -125,27 +125,18 @@ void MustSend(ResponseWriter& resp, StatusCode status) noexcept {
     }
 }
 
-OwnedFd to_owned(int fd) {
-    return OwnedFd(new int(fd), [](int* fdp) {
-        if (fdp && *fdp >= 0) {
-            close(*fdp);
-            delete fdp;
-        }
-    });
-}
-
 OwnedFd ServerSocket() {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) throw SystemError(errno);
     int reuse = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-    return to_owned(fd);
+    return Own(fd);
 }
 
 std::array<OwnedFd, 2> MakePipe() {
     int fds[2];
     if (::pipe(fds) < 0) throw SystemError(errno);
-    return {to_owned(fds[0]), to_owned(fds[1])};
+    return {Own(fds[0]), Own(fds[1])};
 }
 
 class SocketWriter : public ResponseWriter {
@@ -340,7 +331,7 @@ void HttpServer::Accept() {
     }
     char ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, ip, INET_ADDRSTRLEN);
-    HttpServer::Client client{to_owned(client_fd), ntohs(client_addr.sin_port),
+    HttpServer::Client client{Own(client_fd), ntohs(client_addr.sin_port),
                               std::string(ip)};
 
     // hand it off to a worker thread

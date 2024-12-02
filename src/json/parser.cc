@@ -6,6 +6,7 @@
 #include <format>
 
 #include "utils/logging.h"
+#include "utils/pointers.h"
 
 namespace gabby {
 namespace json {
@@ -107,9 +108,15 @@ std::optional<Token> Scanner::Scan() {
         case '"': {
             Advance();
             std::string s;
+            bool escaped = false;
             while (true) {
                 c = Advance();
-                if (c == '"' || c == '\n') break;
+                if ((c == '"' && !escaped) || c == '\n') break;
+                if (c == '\\' && !escaped) {
+                    escaped = true;
+                    continue;
+                }
+                escaped = false;
                 s.push_back(c);
             }
             if (c != '"') throw ParsingError("unterminated string");
@@ -266,6 +273,11 @@ ValuePtr Parse(const std::string& s) {
         fmemopen((void*)s.data(), s.size(), "r"), fclose);
     if (f.get() == nullptr) throw SystemError(errno);
     return Parse(f.get(), s.size());
+}
+
+ValuePtr ParseFile(const std::filesystem::path& path) {
+    OwnedStream f = Fopen(path.c_str(), "r");
+    return Parse(f.get(), std::filesystem::file_size(path));
 }
 
 }  // namespace json

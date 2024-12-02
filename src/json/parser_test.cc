@@ -6,10 +6,12 @@
 namespace gabby {
 namespace json {
 
-TEST(JSON, ParseNull) {
-    ScopedLogLevel scope(LogLevel::DEBUG);
-    EXPECT_EQ(*Value::Nil(), *Parse("null"));
+TEST(JSON, ParseEscapes) {
+    EXPECT_EQ(*Value::String(R"(""")"), *Parse(R"("\"\"\"")"));
+    EXPECT_EQ(*Value::String(R"(\\")"), *Parse(R"("\\\\\"")"));
 }
+
+TEST(JSON, ParseNull) { EXPECT_EQ(*Value::Nil(), *Parse("null")); }
 
 TEST(JSON, ParseNumber) {
     EXPECT_EQ(*Value::Number(0), *Parse("0"));

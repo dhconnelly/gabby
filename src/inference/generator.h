@@ -6,6 +6,9 @@
 #include <ostream>
 #include <string>
 
+#include "inference/safetensors.h"
+#include "json/json.h"
+
 namespace gabby {
 namespace inference {
 
@@ -23,13 +26,36 @@ struct Request {
 
 std::ostream& operator<<(std::ostream& os, const Request& msg);
 
-// TODO: thread-safe
 class Generator {
 public:
-    virtual Message Generate(const Request& req);
+    virtual ~Generator() = default;
+    virtual Message Generate(const Request& req) = 0;
+};
+
+class Llama3Generator : public Generator {
+public:
+    Message Generate(const Request& req) override;
 
     static std::unique_ptr<Generator> LoadFromDirectory(
         std::filesystem::path dir);
+
+private:
+    Llama3Generator(json::ValuePtr config, json::ValuePtr gen_config,
+                    json::ValuePtr special_tokens_map,
+                    json::ValuePtr tok_config, json::ValuePtr tok,
+                    Safetensors tensors)
+        : config_(config),
+          gen_config_(gen_config),
+          special_tokens_map_(special_tokens_map),
+          tok_config_(tok_config),
+          tok_(tok),
+          tensors_(std::move(tensors)) {}
+    json::ValuePtr config_;
+    json::ValuePtr gen_config_;
+    json::ValuePtr special_tokens_map_;
+    json::ValuePtr tok_config_;
+    json::ValuePtr tok_;
+    Safetensors tensors_;
 };
 
 }  // namespace inference

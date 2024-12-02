@@ -1,8 +1,11 @@
 #include "inference/generator.h"
 
+#include <cerrno>
+#include <cstdio>
 #include <format>
 #include <sstream>
 
+#include "json/parser.h"
 #include "utils/logging.h"
 
 namespace gabby {
@@ -27,20 +30,25 @@ std::ostream& operator<<(std::ostream& os, const Request& msg) {
                              to_string(msg.user_message));
 }
 
-Message Generator::Generate(const Request& req) {
+Message Llama3Generator::Generate(const Request& req) {
     return Message{
         .role = "assistant",
         .content = "hey this is gabby, how are u",
     };
 }
 
-/* static */ std::unique_ptr<Generator> Generator::LoadFromDirectory(
+/* static */
+std::unique_ptr<Generator> Llama3Generator::LoadFromDirectory(
     std::filesystem::path dir) {
-    fs::directory_iterator contents(dir);
-    for (fs::path file : contents) {
-        LOG(DEBUG) << "scanning: " << file.string();
-    }
-    return std::make_unique<Generator>();
+    auto config = json::ParseFile(dir / "config.json");
+    auto gen_config = json::ParseFile(dir / "generation_config.json");
+    auto special_tokens_map = json::ParseFile(dir / "special_tokens_map.json");
+    auto tok_config = json::ParseFile(dir / "tokenizer_config.json");
+    auto tok = json::ParseFile(dir / "tokenizer.json");
+    auto tensors = Safetensors::LoadFile(dir / "model.safetensors");
+    return std::unique_ptr<Generator>(
+        new Llama3Generator(config, gen_config, special_tokens_map, tok_config,
+                            tok, std::move(tensors)));
 }
 
 }  // namespace inference

@@ -119,7 +119,8 @@ json::ValuePtr MakeResponse(const inference::Message& answer) {
 InferenceService::InferenceService(Config config)
     : config_(config),
       server_(std::make_unique<http::HttpServer>(config_.server_config)),
-      generator_(inference::Generator::LoadFromDirectory(config.model_dir)) {}
+      generator_(
+          inference::Llama3Generator::LoadFromDirectory(config.model_dir)) {}
 
 InferenceService::InferenceService(
     std::unique_ptr<http::HttpServer> server,

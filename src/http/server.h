@@ -9,6 +9,7 @@
 
 #include "http/thread_pool.h"
 #include "http/types.h"
+#include "utils/pointers.h"
 
 namespace gabby {
 namespace http {
@@ -22,8 +23,6 @@ struct ServerConfig {
 };
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
-
-using OwnedFd = std::unique_ptr<int, void (*)(int*)>;
 
 class HttpServer {
 public:
