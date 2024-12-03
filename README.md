@@ -1,10 +1,19 @@
 # gabby
 
-a llama 3.2 inference server from scratch in c++ and cuda
+a llama 3 inference server from scratch in c++ and cuda
 
 currently under active development, see status below
 
 my december 2024 project, i've retired from advent of code :)
+
+## purpose
+
+a learning exercise, inspired by:
+
+- https://karpathy.ai/zero-to-hero.html
+- https://github.com/karpathy/llama2.c
+- https://jaykmody.com/blog/gpt-from-scratch/
+- https://github.com/ggerganov/llama.cpp
 
 ## status
 
