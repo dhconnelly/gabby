@@ -7,6 +7,7 @@
 #include <string_view>
 #include <thread>
 
+#include "inference/config.h"
 #include "service.h"
 #include "utils/logging.h"
 
@@ -25,34 +26,6 @@ std::ostream& operator<<(std::ostream& os, const Config& config) {
               << ", log_level: " << config.log_level          //
               << ", model_dir: " << config.model_dir          //
               << " }";
-}
-
-constexpr std::string_view kUserRelativeSnapshotDir =
-    ".cache/huggingface/hub/models--meta-llama--Llama-3.2-1B-Instruct/"
-    "snapshots";
-
-fs::path FindModelDir() {
-    const char* home = getenv("HOME");
-    if (home == nullptr) {
-        Die("env var HOME is unset");
-    }
-
-    fs::path snapshots_dir(home);
-    snapshots_dir /= kUserRelativeSnapshotDir;
-    fs::directory_iterator contents;
-    try {
-        contents = fs::directory_iterator(snapshots_dir);
-    } catch (fs::filesystem_error& err) {
-        Die(std::format("can't access model dir at {}: {}",
-                        snapshots_dir.string(), err.what()));
-    }
-
-    auto it = fs::begin(contents);
-    if (it == fs::end(contents)) {
-        Die(std::format("no snapshots found in {}", snapshots_dir.string()));
-    }
-
-    return *it;
 }
 
 Config DefaultConfig() {
@@ -113,7 +86,7 @@ Config ParseConfig(int argc, char* argv[]) {
         }
     }
     if (config.model_dir.empty()) {
-        config.model_dir = FindModelDir();
+        config.model_dir = inference::FindDefaultModelDir();
     }
     return config;
 }

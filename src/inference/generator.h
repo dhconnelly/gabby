@@ -6,6 +6,7 @@
 #include <ostream>
 #include <string>
 
+#include "inference/config.h"
 #include "inference/safetensors.h"
 #include "json/json.h"
 
@@ -36,26 +37,13 @@ class Llama3Generator : public Generator {
 public:
     Message Generate(const Request& req) override;
 
-    static std::unique_ptr<Generator> LoadFromDirectory(
-        std::filesystem::path dir);
+    static std::unique_ptr<Generator> Load(
+        std::unique_ptr<InferenceConfig> config);
 
 private:
-    Llama3Generator(json::ValuePtr config, json::ValuePtr gen_config,
-                    json::ValuePtr special_tokens_map,
-                    json::ValuePtr tok_config, json::ValuePtr tok,
-                    Safetensors tensors)
-        : config_(config),
-          gen_config_(gen_config),
-          special_tokens_map_(special_tokens_map),
-          tok_config_(tok_config),
-          tok_(tok),
-          tensors_(std::move(tensors)) {}
-    json::ValuePtr config_;
-    json::ValuePtr gen_config_;
-    json::ValuePtr special_tokens_map_;
-    json::ValuePtr tok_config_;
-    json::ValuePtr tok_;
-    Safetensors tensors_;
+    Llama3Generator(std::unique_ptr<InferenceConfig> config)
+        : config_(std::move(config)) {}
+    std::unique_ptr<InferenceConfig> config_;
 };
 
 }  // namespace inference

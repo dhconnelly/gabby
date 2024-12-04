@@ -1,4 +1,23 @@
+#include <mutex>
+
+#include "inference/config.h"
+#include "test/env.h"
 #include "test/test.h"
+
+namespace gabby {
+
+static inference::InferenceConfig* kGlobalConfig = nullptr;
+std::once_flag once;
+
+const inference::InferenceConfig& GlobalConfig() {
+    std::call_once(once, [] {
+        kGlobalConfig =
+            inference::LoadConfig(inference::FindDefaultModelDir()).release();
+    });
+    return *kGlobalConfig;
+}
+
+}  // namespace gabby
 
 int main(int argc, char* argv[]) {
     int failures = 0;

@@ -38,17 +38,9 @@ Message Llama3Generator::Generate(const Request& req) {
 }
 
 /* static */
-std::unique_ptr<Generator> Llama3Generator::LoadFromDirectory(
-    std::filesystem::path dir) {
-    auto config = json::ParseFile(dir / "config.json");
-    auto gen_config = json::ParseFile(dir / "generation_config.json");
-    auto special_tokens_map = json::ParseFile(dir / "special_tokens_map.json");
-    auto tok_config = json::ParseFile(dir / "tokenizer_config.json");
-    auto tok = json::ParseFile(dir / "tokenizer.json");
-    auto tensors = Safetensors::LoadFile(dir / "model.safetensors");
-    return std::unique_ptr<Generator>(
-        new Llama3Generator(config, gen_config, special_tokens_map, tok_config,
-                            tok, std::move(tensors)));
+std::unique_ptr<Generator> Llama3Generator::Load(
+    std::unique_ptr<InferenceConfig> config) {
+    return std::unique_ptr<Generator>(new Llama3Generator(std::move(config)));
 }
 
 }  // namespace inference

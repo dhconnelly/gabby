@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "http/router.h"
+#include "inference/config.h"
 #include "json/json.h"
 #include "json/parser.h"
 #include "utils/logging.h"
@@ -119,8 +120,8 @@ json::ValuePtr MakeResponse(const inference::Message& answer) {
 InferenceService::InferenceService(Config config)
     : config_(config),
       server_(std::make_unique<http::HttpServer>(config_.server_config)),
-      generator_(
-          inference::Llama3Generator::LoadFromDirectory(config.model_dir)) {}
+      generator_(inference::Llama3Generator::Load(
+          inference::LoadConfig(config.model_dir))) {}
 
 InferenceService::InferenceService(
     std::unique_ptr<http::HttpServer> server,
