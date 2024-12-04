@@ -348,7 +348,6 @@ void HttpServer::Accept() {
 }
 
 void HttpServer::Handle(Client&& client) {
-    // TODO: concurrency
     LOG(DEBUG) << "handling client " << client.addr << ":" << client.port;
 
     SetTimeout(*client.fd, config_.read_timeout_millis, SO_RCVTIMEO);
