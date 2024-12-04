@@ -22,6 +22,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Hugging Face Login
+      run: |
+        pip install -U "huggingface_hub[cli]"
+        huggingface-cli login --token ${{secrets.HF_TOKEN}} --add-to-git-credential 
+
+    - name: Verify HF login
+      run: huggingface-cli whoami
+
+    - name: Pull model
+      run: huggingface-cli download meta-llama/Llama-3.2-1B-Instruct
+              
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
